@@ -362,6 +362,7 @@
                     <table class="w-full border-collapse text-center">
                         <thead class="bg-teal-50 text-teal-950 border-b-2 border-teal-100 font-black uppercase text-xs md:text-sm">
                             <tr>
+                                <th class="text-left border-r border-teal-100 px-6">HR</th>
                                 <th class="text-left border-r border-teal-100 px-6">Brand</th>
                                 <th class="border-r border-teal-100 text-indigo-700 px-4">Lead</th>
                                 <th class="border-r border-teal-100 text-emerald-700 px-4">NJ Offer</th>
@@ -908,6 +909,11 @@
                     // 若沒有任何勾選的 Position，則跳過 (不顯示資料)
                     if (!selectedPositions.includes(pos)) return;
                     
+                    // 從 Sheet 1 的 F 欄位 (index 5) 抓取 HR 名字
+                    let hrName = (row[headersS1[5]] || "").trim();
+                    // 排除空值以及 Operation
+                    if (!hrName || hrName.toUpperCase().includes("OPERATION")) return;
+                    
                     const ld = parseDate(row[headersS1[S1_IDX.LEAD_DATE]]);
                     const ldTs = ld ? ld.getTime() : null;
                     const od = parseDate(row[headersS1[S1_IDX.OFFER_DATE]]);
@@ -933,9 +939,9 @@
                     }
                     
                     if (isLead || isOffer) {
-                        // 移除 HR PIC 後，只以 Brand 作為彙總分類
-                        const key = brand;
-                        if (!hrMap.has(key)) hrMap.set(key, { leads: 0, nj: 0, rj: 0 });
+                        // 使用 HR名字 + Brand 作為群組條件
+                        const key = hrName + "___" + brand;
+                        if (!hrMap.has(key)) hrMap.set(key, { hr: hrName, brand: brand, leads: 0, nj: 0, rj: 0 });
                         const stats = hrMap.get(key);
                         if (isLead) stats.leads++;
                         if (isOffer) {
@@ -945,17 +951,18 @@
                     }
                 });
                 
+                // 排序：先按 HR 名字排序，再按 Brand
                 const hrKeys = Array.from(hrMap.keys()).sort();
                 hrKeys.forEach(key => {
-                    const brand = key;
                     const stats = hrMap.get(key);
                     if (stats.leads > 0 || stats.nj > 0 || stats.rj > 0) {
                         hrBody.innerHTML += `
-                            <tr class="hover:bg-teal-50 transition font-bold text-center">
-                                <td class="text-left border-r border-teal-100 px-6">${brand}</td>
-                                <td class="border-r border-teal-100 text-indigo-700 text-xl px-4">${stats.leads}</td>
-                                <td class="border-r border-teal-100 text-emerald-700 text-xl px-4">${stats.nj}</td>
-                                <td class="text-emerald-700 text-xl px-4">${stats.rj}</td>
+                            <tr class="hover:bg-teal-100 transition font-bold text-center cursor-pointer" onclick="toggleHrList('${stats.hr}', '${stats.brand}')" title="點擊查看明細">
+                                <td class="text-left border-r border-teal-100 px-6">${stats.hr}</td>
+                                <td class="text-left border-r border-teal-100 px-6">${stats.brand}</td>
+                                <td class="border-r border-teal-100 text-indigo-700 text-xl px-4 underline decoration-indigo-300 decoration-2 underline-offset-4">${stats.leads}</td>
+                                <td class="border-r border-teal-100 text-emerald-700 text-xl px-4 underline decoration-emerald-300 decoration-2 underline-offset-4">${stats.nj}</td>
+                                <td class="text-emerald-700 text-xl px-4 underline decoration-emerald-300 decoration-2 underline-offset-4">${stats.rj}</td>
                             </tr>`;
                     }
                 });
@@ -1013,6 +1020,45 @@
                         if (!onbD || onbD < obS || onbD > (new Date(obE).setHours(23,59,59))) return false;
                     }
                     return true;
+                });
+            } else if (mode === "HR") {
+                // HR 表格專用的明細邏輯
+                const [hrName, brand] = key.split('___');
+                document.getElementById('sharedDetailTitle').innerHTML = `<span class="w-3 h-3 bg-teal-500 rounded-full mr-3 inline-block"></span> [${hrName}] ${brand} HR 推薦名單`;
+                
+                const hrS = getLocalDateFromInput(document.getElementById('hrPerfStart')?.value);
+                const hrE = getLocalDateFromInput(document.getElementById('hrPerfEnd')?.value);
+                const hrObS = getLocalDateFromInput(document.getElementById('hrPerfObStart')?.value);
+                const hrObE = getLocalDateFromInput(document.getElementById('hrPerfObEnd')?.value);
+                const useHrOb = document.getElementById('useHrPerfObFilter')?.checked;
+
+                list = dataS1.filter(row => {
+                    const bMatch = (row[headersS1[S1_IDX.BRAND]]||"").trim().toUpperCase() === brand.toUpperCase();
+                    const hrMatch = (row[headersS1[5]]||"").trim() === hrName;
+                    if (!bMatch || !hrMatch) return false;
+
+                    const pos = (row[headersS1[4]]||"").trim().toUpperCase();
+                    if (!selectedPositions.includes(pos)) return false;
+
+                    const ld = parseDate(row[headersS1[S1_IDX.LEAD_DATE]]);
+                    const od = parseDate(row[headersS1[S1_IDX.OFFER_DATE]]);
+                    const onbD = parseDate(row[headersS1[S1_IDX.ONBOARD_DATE]]);
+                    const st = (row[headersS1[S1_IDX.STATUS]]||"").toUpperCase();
+
+                    let isLead = false;
+                    let isOffer = false;
+
+                    if (ld && hrS && hrE && ld >= hrS && ld <= (new Date(hrE).setHours(23,59,59))) isLead = true;
+
+                    let validOb = true;
+                    if (useHrOb && hrObS && hrObE) {
+                        if (!onbD || onbD < hrObS || onbD > (new Date(hrObE).setHours(23,59,59))) validOb = false;
+                    }
+                    if (validOb && od && hrS && hrE && od >= hrS && od <= (new Date(hrE).setHours(23,59,59)) && (st.includes("OFFER") || st.includes("ACCEPT"))) {
+                        isOffer = true;
+                    }
+
+                    return isLead || isOffer;
                 });
             } else {
                 const card = document.getElementById(`pending-${key}`); if(card) card.classList.add('active');
@@ -1313,6 +1359,7 @@
         function toggleWeeklyList(b) { currentDetailMode==="WEEKLY"&&currentDetailKey===b ? hideSharedDetail() : showSharedDetail("WEEKLY", b); }
         function toggleLeadList(b) { currentDetailMode==="LEAD"&&currentDetailKey===b ? hideSharedDetail() : showSharedDetail("LEAD", b); }
         function togglePendingList(b) { currentDetailMode==="PENDING"&&currentDetailKey===b ? hideSharedDetail() : showSharedDetail("PENDING", b); }
+        function toggleHrList(hr, brand) { const key = hr+"___"+brand; currentDetailMode==="HR"&&currentDetailKey===key ? hideSharedDetail() : showSharedDetail("HR", key); }
         function hideSharedDetail() { const el = document.getElementById('sharedDetailArea'); if(el) el.classList.add('hidden'); document.querySelectorAll('.batch-card, .weekly-card, .lead-card, .pending-card').forEach(c => c.classList.remove('active')); currentDetailMode = ""; currentDetailKey = ""; }
         function resetFilters() { document.getElementById('filterBrand').value = ''; document.getElementById('filterFloor').disabled = true; document.getElementById('filterName').disabled = true; document.getElementById('staffId').value = ''; showNone(); const ip = document.getElementById('initialPrompt'); if(ip) ip.classList.remove('hidden'); }
         function showNone() { ['statsArea','resultAreaSheet2','inactiveResultArea','resultArea','referralTrackingInfo'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('hidden'); }); hideSharedDetail(); }
