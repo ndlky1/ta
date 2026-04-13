@@ -461,44 +461,41 @@
             return "bg-amber-100 text-amber-800 text-center"; 
         }
 
-        // 智慧判斷日期區間 (尋找 Commitment Sheet 中符合的欄位名稱)
-        function getCommitmentColumn(headers, targetDate) {
-            if (!targetDate) return null;
-            const targetTs = targetDate.getTime();
-            const year = targetDate.getFullYear();
-            // 包含常見月份縮寫與可能的拼字錯誤防呆(如: arpil -> apr)
+        // 智慧判斷日期區間並計算總天數 (支援多欄位及比例計算)
+        function getCommitmentColsInfo(headers, baseYear) {
             const monthMap = { jan:0, feb:1, mar:2, apr:3, arp:3, may:4, jun:5, jul:6, aug:7, sep:8, oct:9, nov:10, dec:11 };
-            
-            function parseStr(str) {
-                const match = str.toLowerCase().match(/(\d+)\s*([a-z]+)/);
-                if (!match) return null;
-                const day = parseInt(match[1]);
-                const mStr = match[2].substring(0, 3);
-                const mIdx = monthMap[mStr];
-                if (mIdx !== undefined) return new Date(year, mIdx, day);
-                return null;
-            }
-
+            let cols = [];
             for (let i = 0; i < headers.length; i++) {
                 const h = headers[i];
                 if (h.toUpperCase() === 'BRAND' || h.toUpperCase() === 'PIC') continue;
                 
-                // 移除可能存在的換行符號 (\n 或 \r)
                 const cleanH = h.replace(/[\r\n]+/g, ' ');
                 const parts = cleanH.split('-');
                 if (parts.length >= 2) {
+                    const parseStr = (str) => {
+                        const match = str.toLowerCase().match(/(\d+)\s*([a-z]+)/);
+                        if (!match) return null;
+                        const day = parseInt(match[1]);
+                        const mStr = match[2].substring(0, 3);
+                        const mIdx = monthMap[mStr];
+                        if (mIdx !== undefined) return new Date(baseYear, mIdx, day);
+                        return null;
+                    };
                     const d1 = parseStr(parts[0]);
                     const d2 = parseStr(parts[1]);
                     if (d1 && d2) {
+                        d1.setHours(0, 0, 0, 0);
                         d2.setHours(23, 59, 59, 999);
-                        // 若選定的起始日落在該欄位的日期區間內
-                        if (targetTs >= d1.getTime() && targetTs <= d2.getTime()) {
-                            return h;
+                        const t1 = d1.getTime();
+                        const t2 = d2.getTime();
+                        const totalDays = Math.round((t2 - t1) / 86400000);
+                        if (totalDays > 0) {
+                            cols.push({ colName: h, start: t1, end: t2, totalDays });
                         }
                     }
                 }
             }
-            return null;
+            return cols;
         }
 
         // --- 入職批次統計 ---
@@ -512,6 +509,9 @@
             const todayTs = todayMidnight.getTime();
 
             dataS1.forEach(row => {
+                const source = (row[headersS1[5]] || "").trim().toUpperCase();
+                if (!source.includes("OPERATION")) return;
+
                 const dateStr = (row[headersS1[S1_IDX.ONBOARD_DATE]] || "").trim();
                 if (!dateStr || dateStr === "-" || dateStr === "") return;
                 const d = parseDate(dateStr);
@@ -592,6 +592,8 @@
             
             ['DERMES', 'REENEX', 'ELYZE'].forEach(brand => {
                 const list = dataS1.filter(row => {
+                    const source = (row[headersS1[5]] || "").trim().toUpperCase();
+                    if (!source.includes("OPERATION")) return false;
                     if ((row[headersS1[S1_IDX.BRAND]]||"").trim().toUpperCase() !== brand) return false;
                     const ld = parseDate(row[headersS1[S1_IDX.LEAD_DATE]]);
                     const ldTs = ld ? ld.getTime() : null;
@@ -628,6 +630,8 @@
             
             ['DERMES', 'REENEX', 'ELYZE'].forEach(brand => {
                 const list = dataS1.filter(row => {
+                    const source = (row[headersS1[5]] || "").trim().toUpperCase();
+                    if (!source.includes("OPERATION")) return false;
                     if((row[headersS1[S1_IDX.BRAND]]||"").trim().toUpperCase() !== brand) return false;
                     const od = parseDate(row[headersS1[S1_IDX.OFFER_DATE]]);
                     const odTs = od ? od.getTime() : null;
@@ -664,6 +668,8 @@
             
             ['DERMES', 'REENEX', 'ELYZE'].forEach(brand => {
                 const list = dataS1.filter(row => {
+                    const source = (row[headersS1[5]] || "").trim().toUpperCase();
+                    if (!source.includes("OPERATION")) return false;
                     if ((row[headersS1[S1_IDX.BRAND]]||"").trim().toUpperCase() !== brand) return false;
                     const od = parseDate(row[headersS1[S1_IDX.OFFER_DATE]]);
                     const odTs = od ? od.getTime() : null;
@@ -703,8 +709,9 @@
             const poStartTs = poStart ? poStart.getTime() : 0;
             const poEndLimitTs = poEnd ? new Date(poEnd.getTime()).setHours(23,59,59,999) : Infinity;
 
-            // 尋找對應的 Commitment 欄位
-            const targetCommitmentCol = getCommitmentColumn(headersS4, pStart);
+            // 取得 Sheet 4 中所有符合格式的日期欄位與其天數資訊
+            const baseYear = pStart ? pStart.getFullYear() : new Date().getFullYear();
+            const validS4Cols = getCommitmentColsInfo(headersS4, baseYear);
             const s4PicCol = headersS4.find(h => h.trim().toUpperCase() === 'PIC');
             const s4BrandCol = headersS4.find(h => h.trim().toUpperCase() === 'BRAND');
 
@@ -760,6 +767,9 @@
                         const picFloors = picRowsS2.map(i => (i[headersS2[S2_IDX.FLOOR]]||"").trim().toUpperCase());
                         
                         const s1RowsForPic = dataS1.filter(row1 => {
+                            const source = (row1[headersS1[5]] || "").trim().toUpperCase();
+                            if (!source.includes("OPERATION")) return false;
+
                             const bMatch = (row1[headersS1[S1_IDX.BRAND]]||"").trim().toUpperCase() === brand;
                             const rowFloor = (row1[headersS1[S1_IDX.FLOOR]]||"").trim().toUpperCase();
                             const fMatch = picFloors.includes(rowFloor);
@@ -793,9 +803,9 @@
                         const getBaseName = (name) => name.includes('-') ? name.split('-')[1].trim() : name.trim();
                         const baseName = getBaseName(picName);
 
-                        // 從 Sheet 4 獲取對應的 Commitment
-                        let commitmentDisplay = "0";
-                        if (targetCommitmentCol && s4PicCol && s4BrandCol) {
+                        // 從 Sheet 4 獲取對應的 Commitment 並按選擇日期計算比例
+                        let commitmentTotal = 0;
+                        if (s4PicCol && s4BrandCol) {
                             // 先找完全符合的 PIC 名字
                             let s4Row = dataS4.find(r => (r[s4BrandCol]||"").trim().toUpperCase() === brand.toUpperCase() && (r[s4PicCol]||"").trim() === picName.trim());
                             
@@ -804,10 +814,25 @@
                                 s4Row = dataS4.find(r => (r[s4BrandCol]||"").trim().toUpperCase() === brand.toUpperCase() && getBaseName(r[s4PicCol]||"") === baseName);
                             }
 
-                            if (s4Row && s4Row[targetCommitmentCol] && s4Row[targetCommitmentCol].toString().trim() !== "") {
-                                commitmentDisplay = s4Row[targetCommitmentCol];
+                            if (s4Row && pStartTs && pEndLimitTs) {
+                                validS4Cols.forEach(col => {
+                                    // 計算使用者選擇的日期區間與 Sheet 4 此欄位區間的重疊狀況
+                                    const overlapStart = Math.max(pStartTs, col.start);
+                                    const overlapEnd = Math.min(pEndLimitTs, col.end);
+                                    if (overlapStart <= overlapEnd) {
+                                        const overlapDays = Math.round((overlapEnd - overlapStart) / 86400000);
+                                        const rawVal = parseFloat(s4Row[col.colName]) || 0;
+                                        if (rawVal > 0) {
+                                            // 依據重疊天數佔該欄位總天數的比例加總
+                                            commitmentTotal += rawVal * (overlapDays / col.totalDays);
+                                        }
+                                    }
+                                });
                             }
                         }
+                        
+                        // 轉換為顯示字串，自動四捨五入到整數
+                        let commitmentDisplay = commitmentTotal > 0 ? Math.round(commitmentTotal).toString() : "0";
 
                         // 將資料暫存至陣列中，以便後續判斷合併
                         perfRows.push({ brand, picName, baseName, commitmentDisplay, leads, njOffers, rjOffers });
@@ -992,6 +1017,8 @@
             if (mode === "BATCH") {
                 document.getElementById('sharedDetailTitle').innerHTML = `<span class="w-3 h-3 bg-indigo-500 rounded-full mr-3 inline-block"></span> ${key} 批次名單`;
                 list = dataS1.filter(row => {
+                    const source = (row[headersS1[5]] || "").trim().toUpperCase();
+                    if (!source.includes("OPERATION")) return false;
                     const d = parseDate(row[headersS1[S1_IDX.ONBOARD_DATE]]);
                     if(!d) return false;
                     const normalized = `${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
@@ -1001,6 +1028,8 @@
                 const card = document.getElementById(`lead-${key}`); if(card) card.classList.add('active');
                 document.getElementById('sharedDetailTitle').innerHTML = `<span class="w-3 h-3 bg-violet-500 rounded-full mr-3 inline-block"></span> ${key} Lead 名單`;
                 list = dataS1.filter(row => {
+                    const source = (row[headersS1[5]] || "").trim().toUpperCase();
+                    if (!source.includes("OPERATION")) return false;
                     const bMatch = (row[headersS1[S1_IDX.BRAND]]||"").trim().toUpperCase() === key;
                     const ld = parseDate(row[headersS1[S1_IDX.LEAD_DATE]]);
                     const dMatch = ld && startL && endL && ld >= startL && ld <= (new Date(endL).setHours(23,59,59));
@@ -1010,6 +1039,8 @@
                 const card = document.getElementById(`weekly-${key}`); if(card) card.classList.add('active');
                 document.getElementById('sharedDetailTitle').innerHTML = `<span class="w-3 h-3 bg-blue-500 rounded-full mr-3 inline-block"></span> ${key} Offer 名單`;
                 list = dataS1.filter(row => {
+                    const source = (row[headersS1[5]] || "").trim().toUpperCase();
+                    if (!source.includes("OPERATION")) return false;
                     const bMatch = (row[headersS1[S1_IDX.BRAND]]||"").trim().toUpperCase() === key;
                     const od = parseDate(row[headersS1[S1_IDX.OFFER_DATE]]);
                     const onbD = parseDate(row[headersS1[S1_IDX.ONBOARD_DATE]]);
@@ -1039,6 +1070,9 @@
                 const picFloors = picRowsS2.map(i => (i[headersS2[S2_IDX.FLOOR]]||"").trim().toUpperCase());
 
                 list = dataS1.filter(row => {
+                    const source = (row[headersS1[5]] || "").trim().toUpperCase();
+                    if (!source.includes("OPERATION")) return false;
+
                     const bMatch = (row[headersS1[S1_IDX.BRAND]]||"").trim().toUpperCase() === brand.toUpperCase();
                     const rowFloor = (row[headersS1[S1_IDX.FLOOR]]||"").trim().toUpperCase();
                     const fMatch = picFloors.includes(rowFloor);
@@ -1107,6 +1141,8 @@
                 const card = document.getElementById(`pending-${key}`); if(card) card.classList.add('active');
                 document.getElementById('sharedDetailTitle').innerHTML = `<span class="w-3 h-3 bg-orange-500 rounded-full mr-3 inline-block"></span> ${key} 待定/拒絕 Offer 名單`;
                 list = dataS1.filter(row => {
+                    const source = (row[headersS1[5]] || "").trim().toUpperCase();
+                    if (!source.includes("OPERATION")) return false;
                     const bMatch = (row[headersS1[S1_IDX.BRAND]]||"").trim().toUpperCase() === key;
                     const od = parseDate(row[headersS1[S1_IDX.OFFER_DATE]]);
                     const stMatch = !(row[headersS1[S1_IDX.STATUS]]||"").toUpperCase().includes("ACCEPT");
@@ -1373,7 +1409,12 @@
         
         function checkInactiveByDays(days) {
             showNone(); const now = new Date(), cut = new Date(now.getFullYear(), now.getMonth(), now.getDate() - days), lMap = new Map();
-            dataS1.forEach(i => { const sId = (i[headersS1[S1_IDX.STAFF_ID]]||"").trim(), d = parseDate(i[headersS1[S1_IDX.OFFER_DATE]]); if (sId && d && (!lMap.has(sId) || d > lMap.get(sId))) lMap.set(sId, d); });
+            dataS1.forEach(i => { 
+                const source = (i[headersS1[5]] || "").trim().toUpperCase();
+                if (!source.includes("OPERATION")) return;
+                const sId = (i[headersS1[S1_IDX.STAFF_ID]]||"").trim(), d = parseDate(i[headersS1[S1_IDX.OFFER_DATE]]); 
+                if (sId && d && (!lMap.has(sId) || d > lMap.get(sId))) lMap.set(sId, d); 
+            });
             const container = document.getElementById('inactiveBrandContainer'); if(!container) return; container.innerHTML = '';
             ['DERMES', 'ELYZE', 'REENEX'].forEach(bName => {
                 const inact = dataS2.filter(i => (i[headersS2[S2_IDX.BRAND]]||"").toUpperCase() === bName && !i[headersS2[S2_IDX.NAME]].toUpperCase().includes("TOTAL") && !['HIPO E1','CM','DM'].includes((i[headersS2[S2_IDX.POS]]||"").toUpperCase())).filter(i => { const d = lMap.get((i[headersS2[S2_IDX.STAFF_ID]]||"").trim()); return !d || d < cut; });
