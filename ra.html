@@ -209,7 +209,7 @@
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
                 <div class="glass-card">
-                    <h3 id="title-chart-sales" class="text-lg font-bold text-gray-800 mb-4 text-center">各梯次總銷售表現 (NJ vs RJ)</h3>
+                    <h3 id="title-chart-sales" class="text-lg font-bold text-gray-800 mb-4 text-center">各梯次總銷售表現 (點擊柱狀圖查看明細)</h3>
                     <div class="relative h-72">
                         <canvas id="chart-sales"></canvas>
                     </div>
@@ -325,7 +325,39 @@
         </div>
     </div>
 
-    <!-- 新增：在職時間詳細名單 Modal (彈出視窗) -->
+    <!-- 新增：銷售詳細名單 Modal (彈出視窗) -->
+    <div id="sales-modal" class="fixed inset-0 z-[100] hidden bg-gray-900 bg-opacity-60 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="p-5 border-b flex justify-between items-center bg-indigo-50">
+                <h3 class="text-xl font-bold text-indigo-900" id="sales-modal-title">銷售明細</h3>
+                <button onclick="closeSalesModal()" class="text-gray-500 hover:text-rose-600 focus:outline-none transition">
+                    <i class="fa-solid fa-times text-2xl"></i>
+                </button>
+            </div>
+            <div class="p-0 overflow-y-auto flex-1 bg-white">
+                <table class="min-w-full text-left text-sm text-gray-600">
+                    <thead class="bg-gray-100 text-gray-800 uppercase font-semibold sticky top-0 shadow-sm">
+                        <tr>
+                            <th class="px-6 py-4 whitespace-nowrap">Batch Date (A)</th>
+                            <th class="px-6 py-4 whitespace-nowrap">Staff ID (C)</th>
+                            <th class="px-6 py-4 whitespace-nowrap">Name (D)</th>
+                            <th class="px-6 py-4 whitespace-nowrap text-center">上數月數</th>
+                            <th class="px-6 py-4 whitespace-nowrap text-right">總銷售 (HK$)</th>
+                            <th class="px-6 py-4 whitespace-nowrap text-right text-emerald-700">平均月銷售 (HK$)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sales-modal-tbody" class="divide-y divide-gray-200">
+                        <!-- rows inserted dynamically -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-gray-50 p-4 border-t text-right">
+                <button onclick="closeSalesModal()" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded shadow transition">關閉視窗</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 在職時間詳細名單 Modal (彈出視窗) -->
     <div id="tenure-modal" class="fixed inset-0 z-[100] hidden bg-gray-900 bg-opacity-60 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
         <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
             <div class="p-5 border-b flex justify-between items-center bg-indigo-50">
@@ -381,12 +413,12 @@
         let globalSalesData = []; // [ { month, staffId, actual, realized } ]
         
         // Chart Instances
-        let chartSalesHcIns = null; // 新增：人數分佈圖
+        let chartSalesHcIns = null; 
         let chartSalesIns = null;
         let chartAvgSalesIns = null;
         let chartRetentionIns = null;
         let chartTenureIns = null;
-        let chartJoinersIns = null; // 新增趨勢圖 Instance
+        let chartJoinersIns = null; 
 
         // --- Custom Dropdown Logic (新增 Checkbox 選單控制) ---
         function toggleDropdown(panelId) {
@@ -670,14 +702,18 @@
                 const batchGroup = getBatchGroup(info); // 取得梯次年月
                 
                 // 套用年月 Checkbox 過濾
-                if (!selectedPeriods.includes(batchGroup)) continue;
+                if (selectedPeriods.length > 0 && !selectedPeriods.includes(batchGroup)) continue;
                 
                 filteredStaffIds.add(staffId);
                 
                 const role = (info.role === 'NJ' || info.role === 'RJ') ? info.role : 'OTHER';
                 
                 if (!statsByBatch[batchGroup]) {
-                    statsByBatch[batchGroup] = { NJ: { hc: 0, actual: 0, realized: 0 }, RJ: { hc: 0, actual: 0, realized: 0 } };
+                    // 修改：新增 records (Set) 來精確計算「有上數的獨特月份數量」
+                    statsByBatch[batchGroup] = { 
+                        NJ: { hc: 0, actual: 0, realized: 0, records: new Set() }, 
+                        RJ: { hc: 0, actual: 0, realized: 0, records: new Set() } 
+                    };
                 }
                 
                 if (role === 'NJ' || role === 'RJ') {
@@ -702,6 +738,11 @@
                     if (statsByBatch[batchGroup] && (role === 'NJ' || role === 'RJ')) {
                         statsByBatch[batchGroup][role].actual += sale.actual;
                         statsByBatch[batchGroup][role].realized += sale.realized;
+                        
+                        // 修改：紀錄這個人這個月有上數 (Staff ID + Month 組合成唯一值)
+                        if (sale.month) {
+                            statsByBatch[batchGroup][role].records.add(`${sale.staffId}-${sale.month}`);
+                        }
                     }
                 }
             });
@@ -777,8 +818,9 @@
             const metricKey = metricFilter === 'ACTUAL' ? 'actual' : 'realized';
             const metricLabel = metricFilter === 'ACTUAL' ? 'Actual Sales' : 'Realized Sales';
 
-            document.getElementById('title-chart-sales').innerText = `各梯次總銷售表現 (${metricLabel} - NJ vs RJ)`;
-            document.getElementById('title-chart-avg-sales').innerText = `各梯次人均銷售表現 (Average ${metricLabel} - NJ vs RJ)`;
+            document.getElementById('title-chart-sales').innerText = `各梯次總銷售表現 (點擊柱狀圖查看明細)`;
+            // 修改：標題更名為每月人均
+            document.getElementById('title-chart-avg-sales').innerText = `各梯次人均每月銷售表現 (Avg. Monthly Sales per Head)`;
 
             if (chartSalesHcIns) chartSalesHcIns.destroy();
             if (chartSalesIns) chartSalesIns.destroy();
@@ -803,7 +845,7 @@
                 }
             });
 
-            // --- 升級：Chart 1: Total Sales (Hover 顯示人數) ---
+            // --- 升級：Chart 1: Total Sales (點擊彈出銷售明細) ---
             const ctxSales = document.getElementById('chart-sales').getContext('2d');
             chartSalesIns = new Chart(ctxSales, {
                 type: 'bar',
@@ -818,6 +860,23 @@
                     responsive: true, 
                     maintainAspectRatio: false, 
                     interaction: { mode: 'index', intersect: false },
+                    onHover: (event, elements, chart) => {
+                        // 修改：精準鎖定滑鼠下方的那根柱子
+                        const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+                        event.native.target.style.cursor = points.length ? 'pointer' : 'default';
+                    },
+                    onClick: (event, elements, chart) => {
+                        // 修改：精準讀取被點擊的那根柱子，不再預設抓取 NJ
+                        const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+                        if (points.length > 0) {
+                            const datasetIndex = points[0].datasetIndex;
+                            const index = points[0].index;
+                            const batch = chart.data.labels[index];
+                            const isNJ = datasetIndex === 0;
+                            const roleClicked = isNJ ? 'NJ' : 'RJ';
+                            showSalesDetails(batch, roleClicked, metricFilter);
+                        }
+                    },
                     plugins: {
                         tooltip: {
                             callbacks: {
@@ -825,7 +884,10 @@
                                     const batch = context.label;
                                     const isNJ = context.datasetIndex === 0;
                                     const hc = isNJ ? statsByBatch[batch].NJ.hc : statsByBatch[batch].RJ.hc;
-                                    return `(人數: ${hc} 人)`;
+                                    // 修改：計算平均上數月數
+                                    const recordsCount = isNJ ? statsByBatch[batch].NJ.records.size : statsByBatch[batch].RJ.records.size;
+                                    const avgMonths = hc > 0 ? (recordsCount / hc).toFixed(1) : 0;
+                                    return `(人數: ${hc} 人, 平均上數: ${avgMonths} 個月) - 點擊查看明細`;
                                 }
                             }
                         }
@@ -834,21 +896,46 @@
                 }
             });
 
-            // --- 升級：Chart 2: Average Sales (Hover 顯示人數) ---
+            // --- 升級：Chart 2: Average Sales per Month (點擊彈出銷售明細) ---
             const ctxAvgSales = document.getElementById('chart-avg-sales').getContext('2d');
             chartAvgSalesIns = new Chart(ctxAvgSales, {
                 type: 'bar',
                 data: {
                     labels: batches,
+                    // 修改：算法改為 總金額 / 總上數紀錄(月)數
                     datasets: [
-                        { label: `人均 ${metricLabel} (NJ人員)`, data: batches.map(b => statsByBatch[b].NJ.hc > 0 ? (statsByBatch[b].NJ[metricKey] / statsByBatch[b].NJ.hc) : 0), backgroundColor: 'rgba(255, 99, 132, 0.7)', borderWidth: 1 },
-                        { label: `人均 ${metricLabel} (RJ人員)`, data: batches.map(b => statsByBatch[b].RJ.hc > 0 ? (statsByBatch[b].RJ[metricKey] / statsByBatch[b].RJ.hc) : 0), backgroundColor: 'rgba(255, 159, 64, 0.7)', borderWidth: 1 }
+                        { label: `平均月銷售 ${metricLabel} (NJ人員)`, data: batches.map(b => {
+                            const rCount = statsByBatch[b].NJ.records.size;
+                            return rCount > 0 ? (statsByBatch[b].NJ[metricKey] / rCount) : 0;
+                        }), backgroundColor: 'rgba(255, 99, 132, 0.7)', borderWidth: 1 },
+                        
+                        { label: `平均月銷售 ${metricLabel} (RJ人員)`, data: batches.map(b => {
+                            const rCount = statsByBatch[b].RJ.records.size;
+                            return rCount > 0 ? (statsByBatch[b].RJ[metricKey] / rCount) : 0;
+                        }), backgroundColor: 'rgba(255, 159, 64, 0.7)', borderWidth: 1 }
                     ]
                 },
                 options: { 
                     responsive: true, 
                     maintainAspectRatio: false, 
                     interaction: { mode: 'index', intersect: false },
+                    onHover: (event, elements, chart) => {
+                        // 修改：精準鎖定滑鼠下方的那根柱子
+                        const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+                        event.native.target.style.cursor = points.length ? 'pointer' : 'default';
+                    },
+                    onClick: (event, elements, chart) => {
+                        // 修改：精準讀取被點擊的那根柱子，不再預設抓取 NJ
+                        const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+                        if (points.length > 0) {
+                            const datasetIndex = points[0].datasetIndex;
+                            const index = points[0].index;
+                            const batch = chart.data.labels[index];
+                            const isNJ = datasetIndex === 0;
+                            const roleClicked = isNJ ? 'NJ' : 'RJ';
+                            showSalesDetails(batch, roleClicked, metricFilter);
+                        }
+                    },
                     plugins: {
                         tooltip: {
                             callbacks: {
@@ -856,7 +943,10 @@
                                     const batch = context.label;
                                     const isNJ = context.datasetIndex === 0;
                                     const hc = isNJ ? statsByBatch[batch].NJ.hc : statsByBatch[batch].RJ.hc;
-                                    return `(人數: ${hc} 人)`;
+                                    // 修改：計算平均上數月數
+                                    const recordsCount = isNJ ? statsByBatch[batch].NJ.records.size : statsByBatch[batch].RJ.records.size;
+                                    const avgMonths = hc > 0 ? (recordsCount / hc).toFixed(1) : 0;
+                                    return `(人數: ${hc} 人, 平均上數: ${avgMonths} 個月) - 點擊查看明細`;
                                 }
                             }
                         }
@@ -954,7 +1044,87 @@
             });
         }
 
-        // --- 新增：顯示在職時間詳細名單邏輯 ---
+        // --- 新增：顯示銷售詳細名單邏輯 ---
+        function showSalesDetails(clickedBatch, clickedRole, metricFilter) {
+            const sourceFilter = document.getElementById('sales-filter-source').value;
+            const roleFilter = document.getElementById('sales-filter-role').value;
+            const selectedPeriods = getSelectedPeriods('sales');
+            const metricKey = metricFilter === 'ACTUAL' ? 'actual' : 'realized';
+            
+            let staffSalesMap = {}; // 用來存放每個人的業績加總
+
+            // 1. 找出該梯次、該類型(NJ/RJ) 底下，所有符合目前過濾條件的員工
+            for (const [staffId, info] of Object.entries(globalStaffMap)) {
+                if (sourceFilter !== 'ALL' && info.source !== sourceFilter) continue;
+                if (roleFilter !== 'ALL' && info.role !== roleFilter) continue;
+                
+                const batchGroup = getBatchGroup(info);
+                if (selectedPeriods.length > 0 && !selectedPeriods.includes(batchGroup)) continue;
+                
+                if (batchGroup !== clickedBatch) continue; // 必須是點擊的梯次
+                
+                const role = (info.role === 'NJ' || info.role === 'RJ') ? info.role : 'OTHER';
+                if (role !== clickedRole) continue; // 必須是點擊的類型 (NJ or RJ)
+
+                staffSalesMap[staffId] = {
+                    staffId: staffId,
+                    name: info.name || '-',
+                    batchDate: info.batchDate || '-',
+                    amount: 0,
+                    months: new Set() // 修改：新增紀錄這個人有上數的月份
+                };
+            }
+
+            // 2. 加總這些員工在 globalSalesData 裡面的所有業績與上數月數
+            globalSalesData.forEach(sale => {
+                if (staffSalesMap[sale.staffId]) {
+                    staffSalesMap[sale.staffId].amount += sale[metricKey];
+                    if (sale.month) {
+                        staffSalesMap[sale.staffId].months.add(sale.month); // 紀錄月份
+                    }
+                }
+            });
+
+            // 3. 轉成陣列並按照業績 Amount 由高到低排序 (Top Sales 在上面)
+            let matchedStaff = Object.values(staffSalesMap);
+            matchedStaff.sort((a, b) => b.amount - a.amount);
+
+            // 4. 產生 Table HTML
+            const tbody = document.getElementById('sales-modal-tbody');
+            tbody.innerHTML = '';
+            
+            if (matchedStaff.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-gray-500">此區間沒有找到對應的人員銷售資料。</td></tr>`;
+            } else {
+                matchedStaff.forEach(s => {
+                    const monthsCount = s.months.size;
+                    const avgAmount = monthsCount > 0 ? (s.amount / monthsCount) : 0;
+                    
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-indigo-50 transition border-b border-gray-100">
+                            <td class="px-6 py-3">${s.batchDate}</td>
+                            <td class="px-6 py-3 font-semibold text-indigo-600">${s.staffId}</td>
+                            <td class="px-6 py-3 font-medium text-gray-800">${s.name}</td>
+                            <td class="px-6 py-3 text-center text-indigo-600 font-bold">${monthsCount}</td>
+                            <td class="px-6 py-3 text-gray-600 text-right">${formatCurrency(s.amount)}</td>
+                            <td class="px-6 py-3 text-emerald-600 font-bold text-right">${formatCurrency(avgAmount)}</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            // 5. 更新標題並顯示 Modal
+            const metricLabel = metricFilter === 'ACTUAL' ? 'Actual Sales' : 'Realized Sales';
+            document.getElementById('sales-modal-title').innerText = `${clickedBatch} 梯次銷售明細 (${clickedRole} 人員 - ${metricLabel})`;
+            document.getElementById('sales-modal').classList.remove('hidden');
+        }
+
+        // 關閉銷售明細 Modal
+        function closeSalesModal() {
+            document.getElementById('sales-modal').classList.add('hidden');
+        }
+
+        // --- 顯示在職時間詳細名單邏輯 ---
         function showTenureDetails(bucketLabel) {
             const sourceFilter = document.getElementById('attrition-filter-source').value;
             const roleFilter = document.getElementById('attrition-filter-role').value;
