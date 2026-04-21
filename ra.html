@@ -30,302 +30,329 @@
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; }
         .glass-card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); padding: 24px; }
         .hide { display: none; }
+        /* 自定義捲軸 */
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: #f1f1f1; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #c7d2fe; border-radius: 10px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb:hover { background: #818cf8; }
     </style>
 </head>
 <body class="text-slate-800 antialiased">
 
-    <!-- Navigation -->
-    <nav class="bg-indigo-600 text-white shadow-lg">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <i class="fa-solid fa-chart-line text-2xl mr-3"></i>
-                    <span class="font-bold text-xl tracking-wider">招募與績效分析平台</span>
+    <!-- ===== 登入防護畫面 ===== -->
+    <div id="login-container" class="min-h-screen flex items-center justify-center bg-slate-800 absolute inset-0 z-[200]">
+        <div class="bg-white p-10 rounded-2xl shadow-2xl w-full max-w-md text-center transform transition-all">
+            <div class="mb-6">
+                <div class="inline-block p-4 rounded-full bg-indigo-100 text-indigo-600 mb-4">
+                    <i class="fa-solid fa-lock text-3xl"></i>
                 </div>
-                <div class="flex items-center space-x-4">
-                    <button onclick="switchTab('dashboard')" id="btn-dashboard" class="px-3 py-2 rounded-md text-sm font-medium bg-indigo-700 hover:bg-indigo-500 transition">儀表板</button>
-                    <button onclick="switchTab('data-source')" id="btn-data" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-500 transition">資料來源設定</button>
-                </div>
+                <h2 class="text-2xl font-bold text-gray-800">系統存取限制</h2>
+                <p class="text-sm text-gray-500 mt-2">請輸入存取密碼以查看招募與銷售數據</p>
             </div>
-        </div>
-    </nav>
-
-    <!-- Main Content -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-
-        <!-- Tab: Data Source -->
-        <div id="tab-data-source" class="hide">
-            <div class="glass-card max-w-3xl mx-auto">
-                <h2 class="text-2xl font-bold mb-6 text-indigo-900 border-b pb-2"><i class="fa-solid fa-database mr-2"></i>資料匯入設定</h2>
-                
-                <div class="bg-blue-50 text-blue-800 p-4 rounded-lg mb-6 text-sm">
-                    <p class="font-bold mb-1"><i class="fa-solid fa-circle-info mr-2"></i>使用說明：</p>
-                    <p>請選擇以下任一方式載入您的招募與銷售資料：</p>
-                </div>
-
-                <!-- API Section -->
-                <div class="mb-8 p-6 bg-indigo-50 rounded-lg border border-indigo-100">
-                    <h3 class="font-bold text-lg mb-2 text-indigo-900"><i class="fa-solid fa-link mr-2"></i>方式一：透過 Apps Script API 自動同步 (推薦)</h3>
-                    <p class="text-xs text-gray-600 mb-4">將您部署好的 Apps Script Web App 網址貼在下方，即可一鍵拉取最新資料。</p>
-                    <div class="flex flex-col sm:flex-row gap-3">
-                        <input type="text" id="api-url" value="https://script.google.com/macros/s/AKfycbzzmDBB0v7ovUbO3oi2NGAAPLUL3zqOcUTlATlCAWXbmrWWCpxNqB0jDfpMAUcTw2_dQA/exec" placeholder="https://script.google.com/macros/s/..../exec" class="flex-1 p-3 rounded border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm">
-                        <button onclick="fetchFromAPI()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded shadow transition">
-                            <i class="fa-solid fa-cloud-arrow-down mr-2"></i>載入 API 資料
-                        </button>
-                    </div>
-                </div>
-
-                <h3 class="font-bold text-lg mb-4 text-gray-700"><i class="fa-solid fa-file-csv mr-2"></i>方式二：手動上傳 CSV 檔案</h3>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                    <!-- Sheet 1 Upload -->
-                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition bg-gray-50">
-                        <i class="fa-solid fa-users text-3xl text-gray-400 mb-3"></i>
-                        <h3 class="font-bold text-lg mb-2">上傳 Sheet 1 (新人資料)</h3>
-                        <p class="text-xs text-gray-500 mb-4">包含 Batch Date(A), Batch(B), ID(C), Name(D), Dept(H), HR/Ops(L), RJ/NJ(Q), Join Date(T), Last Date(AP), 梯次年月(AS)</p>
-                        <input type="file" id="file-sheet1" accept=".csv" class="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
-                    </div>
-
-                    <!-- Sheet 2 Upload -->
-                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition bg-gray-50">
-                        <i class="fa-solid fa-file-invoice-dollar text-3xl text-gray-400 mb-3"></i>
-                        <h3 class="font-bold text-lg mb-2">上傳 Sheet 2 (銷售表現)</h3>
-                        <p class="text-xs text-gray-500 mb-4">包含 Month(B), Staff ID(I), Actual Sales(N), Realized Sales(R)</p>
-                        <input type="file" id="file-sheet2" accept=".csv" class="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
-                    </div>
-                </div>
-
-                <div class="flex justify-center space-x-4">
-                    <button onclick="processUploadedFiles()" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition transform hover:-translate-y-0.5">
-                        <i class="fa-solid fa-upload mr-2"></i>處理上傳的 CSV
-                    </button>
-                    <button onclick="loadMockData()" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-lg shadow-md transition transform hover:-translate-y-0.5">
-                        <i class="fa-solid fa-wand-magic-sparkles mr-2"></i>載入系統模擬數據
-                    </button>
-                </div>
-                <div id="upload-status" class="mt-4 text-center text-sm font-semibold text-red-600"></div>
-            </div>
-        </div>
-
-        <!-- Tab: Dashboard -->
-        <div id="tab-dashboard">
             
-            <!-- 頂部狀態列 -->
-            <div class="flex justify-end mb-2">
-                <div class="text-sm text-gray-500 whitespace-nowrap" id="data-status">
-                    尚未載入資料，請前往「資料來源設定」。
-                </div>
+            <div class="space-y-4">
+                <input type="password" id="login-password" placeholder="請輸入密碼..." class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-center tracking-widest text-lg">
+                <button onclick="verifyPassword()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 rounded-lg shadow-md transition transform hover:-translate-y-0.5">
+                    解鎖儀表板
+                </button>
+                <p id="login-error" class="text-rose-500 text-sm h-5 font-semibold"></p>
             </div>
-
-            <!-- ===== 區塊 1: 銷售與招募總覽 ===== -->
-            <h2 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2"><i class="fa-solid fa-money-bill-trend-up mr-2"></i>銷售與招募總覽</h2>
-            
-            <!-- 銷售專屬 Filter -->
-            <div class="glass-card mb-6 flex flex-col lg:flex-row items-center justify-between border-l-4 border-indigo-500">
-                <div class="flex flex-col lg:flex-row items-start lg:items-center space-y-4 lg:space-y-0 lg:space-x-4 w-full">
-                    <div class="flex items-center space-x-2">
-                        <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-filter mr-2"></i>招募來源：</label>
-                        <select id="sales-filter-source" onchange="updateSalesData()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none">
-                            <option value="ALL">全部 (All)</option>
-                            <option value="HR">HR</option>
-                            <option value="Ops">Ops</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-user-tag mr-2"></i>人員類型：</label>
-                        <select id="sales-filter-role" onchange="updateSalesData()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none">
-                            <option value="ALL">全部 (All)</option>
-                            <option value="NJ">NJ</option>
-                            <option value="RJ">RJ</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-chart-pie mr-2"></i>分析指標：</label>
-                        <select id="sales-filter-metric" onchange="updateSalesData()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none">
-                            <option value="ACTUAL">分析 Actual Sales</option>
-                            <option value="REALIZED">分析 Realized Sales</option>
-                        </select>
-                    </div>
-                    <!-- 修改：銷售區塊專屬年月 Checkbox 篩選器 -->
-                    <div class="flex items-center space-x-2 custom-dropdown relative">
-                        <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-calendar-days mr-2"></i>梯次年月：</label>
-                        <div class="relative">
-                            <button type="button" onclick="toggleDropdown('sales-period-panel')" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2 flex justify-between items-center min-w-[130px] outline-none">
-                                <span id="sales-period-text" class="truncate mr-2">全部梯次</span>
-                                <i class="fa-solid fa-chevron-down text-gray-500 text-xs"></i>
-                            </button>
-                            <div id="sales-period-panel" class="dropdown-panel hidden absolute z-50 w-56 bg-white border border-gray-200 rounded-md shadow-xl mt-1 max-h-60 overflow-y-auto right-0 lg:left-0 text-sm">
-                                <!-- dynamically populated -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 銷售 KPI Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div class="glass-card">
-                    <div class="flex items-center">
-                        <div class="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
-                            <i class="fa-solid fa-users text-xl"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500 font-medium mb-1">符合條件人數 (Headcount)</p>
-                            <p class="text-3xl font-bold text-gray-800" id="kpi-headcount">0</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="glass-card">
-                    <div class="flex items-center">
-                        <div class="p-3 rounded-full bg-indigo-100 text-indigo-600 mr-4">
-                            <i class="fa-solid fa-hand-holding-dollar text-xl"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500 font-medium mb-1">總實際銷售 (Actual Sales - NJ)</p>
-                            <p class="text-3xl font-bold text-gray-800" id="kpi-actual">HK$ 0</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="glass-card">
-                    <div class="flex items-center">
-                        <div class="p-3 rounded-full bg-emerald-100 text-emerald-600 mr-4">
-                            <i class="fa-solid fa-sack-dollar text-xl"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500 font-medium mb-1">總已實現銷售 (Realized Sales - RJ)</p>
-                            <p class="text-3xl font-bold text-gray-800" id="kpi-realized">HK$ 0</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Charts Section (Sales) -->
-            <!-- 新增：各梯次人數分佈 (NJ vs RJ Headcount) -->
-            <div class="glass-card mb-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">各梯次人數分佈 (NJ vs RJ Headcount)</h3>
-                <div class="relative h-64">
-                    <canvas id="chart-sales-headcount"></canvas>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
-                <div class="glass-card">
-                    <h3 id="title-chart-sales" class="text-lg font-bold text-gray-800 mb-4 text-center">各梯次總銷售表現 (點擊柱狀圖查看明細)</h3>
-                    <div class="relative h-72">
-                        <canvas id="chart-sales"></canvas>
-                    </div>
-                </div>
-                
-                <div class="glass-card">
-                    <h3 id="title-chart-avg-sales" class="text-lg font-bold text-gray-800 mb-4 text-center">各梯次人均銷售表現 (Average Sales per Head)</h3>
-                    <div class="relative h-72">
-                        <canvas id="chart-avg-sales"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ===== 區塊 2: 員工留任與離職分析 ===== -->
-            <h2 class="text-xl font-bold text-rose-800 mb-4 border-b-2 border-rose-100 pb-2 mt-8"><i class="fa-solid fa-door-open mr-2"></i>員工留任與離職分析</h2>
-            
-            <!-- 離職專屬 Filter -->
-            <div class="glass-card mb-6 flex flex-col lg:flex-row items-center justify-between border-l-4 border-rose-400">
-                <div class="flex flex-col lg:flex-row items-start lg:items-center space-y-4 lg:space-y-0 lg:space-x-4 w-full">
-                    <div class="flex items-center space-x-2">
-                        <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-filter mr-2"></i>招募來源 (留任)：</label>
-                        <select id="attrition-filter-source" onchange="updateAttritionData()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-rose-500 focus:border-rose-500 block p-2 outline-none">
-                            <option value="ALL">全部 (All)</option>
-                            <option value="HR">HR</option>
-                            <option value="Ops">Ops</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-user-tag mr-2"></i>人員類型 (留任)：</label>
-                        <select id="attrition-filter-role" onchange="updateAttritionData()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-rose-500 focus:border-rose-500 block p-2 outline-none">
-                            <option value="ALL">全部 (All)</option>
-                            <option value="NJ">NJ</option>
-                            <option value="RJ">RJ</option>
-                        </select>
-                    </div>
-                    <!-- 修改：離職區塊專屬年月 Checkbox 篩選器 -->
-                    <div class="flex items-center space-x-2 custom-dropdown relative">
-                        <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-calendar-days mr-2"></i>梯次年月：</label>
-                        <div class="relative">
-                            <button type="button" onclick="toggleDropdown('attrition-period-panel')" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-rose-500 focus:border-rose-500 p-2 flex justify-between items-center min-w-[130px] outline-none">
-                                <span id="attrition-period-text" class="truncate mr-2">全部梯次</span>
-                                <i class="fa-solid fa-chevron-down text-gray-500 text-xs"></i>
-                            </button>
-                            <div id="attrition-period-panel" class="dropdown-panel hidden absolute z-50 w-56 bg-white border border-gray-200 rounded-md shadow-xl mt-1 max-h-60 overflow-y-auto right-0 lg:left-0 text-sm">
-                                <!-- dynamically populated -->
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Attrition KPI Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                <div class="glass-card">
-                    <div class="flex items-center">
-                        <div class="p-3 rounded-full bg-emerald-100 text-emerald-600 mr-4">
-                            <i class="fa-solid fa-user-check text-xl"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500 font-medium mb-1">目前在職人數 (Active Staff)</p>
-                            <p class="text-3xl font-bold text-gray-800" id="kpi-active">0</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="glass-card">
-                    <div class="flex items-center">
-                        <div class="p-3 rounded-full bg-rose-100 text-rose-600 mr-4">
-                            <i class="fa-solid fa-user-minus text-xl"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500 font-medium mb-1">總離職人數 (Resigned)</p>
-                            <p class="text-3xl font-bold text-gray-800" id="kpi-resigned">0</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="glass-card">
-                    <div class="flex items-center">
-                        <div class="p-3 rounded-full bg-amber-100 text-amber-600 mr-4">
-                            <i class="fa-solid fa-percent text-xl"></i>
-                        </div>
-                        <div>
-                            <p class="text-sm text-gray-500 font-medium mb-1">整體留任率 (Retention Rate)</p>
-                            <p class="text-3xl font-bold text-gray-800" id="kpi-retention-rate">0%</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Attrition Charts -->
-            <!-- 新增：每月入職人數趨勢 (全寬) -->
-            <div class="glass-card mb-6">
-                <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">每月入職人數趨勢 (New Joiners per Month)</h3>
-                <div class="relative h-64">
-                    <canvas id="chart-joiners"></canvas>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="glass-card">
-                    <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">各梯次留任與離職狀況 (Retention by Batch)</h3>
-                    <div class="relative h-72">
-                        <canvas id="chart-retention"></canvas>
-                    </div>
-                </div>
-                <div class="glass-card">
-                    <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">在職時間分佈 (點擊圖表查看詳細名單)</h3>
-                    <div class="relative h-72">
-                        <canvas id="chart-tenure"></canvas>
-                    </div>
-                </div>
-            </div>
-
         </div>
     </div>
 
-    <!-- 新增：銷售詳細名單 Modal (彈出視窗) -->
+    <!-- ===== 主程式畫面 (預設隱藏) ===== -->
+    <div id="app-container" class="hidden">
+        <!-- Navigation -->
+        <nav class="bg-indigo-600 text-white shadow-lg">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex items-center">
+                        <i class="fa-solid fa-chart-line text-2xl mr-3"></i>
+                        <span class="font-bold text-xl tracking-wider">招募與績效分析平台</span>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button onclick="switchTab('dashboard')" id="btn-dashboard" class="px-3 py-2 rounded-md text-sm font-medium bg-indigo-700 hover:bg-indigo-500 transition">儀表板</button>
+                        <button onclick="switchTab('data-source')" id="btn-data" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-500 transition">資料來源設定</button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+            <!-- Tab: Data Source -->
+            <div id="tab-data-source" class="hide">
+                <div class="glass-card max-w-3xl mx-auto">
+                    <h2 class="text-2xl font-bold mb-6 text-indigo-900 border-b pb-2"><i class="fa-solid fa-database mr-2"></i>資料匯入設定</h2>
+                    
+                    <div class="bg-blue-50 text-blue-800 p-4 rounded-lg mb-6 text-sm">
+                        <p class="font-bold mb-1"><i class="fa-solid fa-circle-info mr-2"></i>使用說明：</p>
+                        <p>請選擇以下任一方式載入您的招募與銷售資料：</p>
+                    </div>
+
+                    <!-- API Section -->
+                    <div class="mb-8 p-6 bg-indigo-50 rounded-lg border border-indigo-100">
+                        <h3 class="font-bold text-lg mb-2 text-indigo-900"><i class="fa-solid fa-link mr-2"></i>方式一：透過 Apps Script API 自動同步 (推薦)</h3>
+                        <p class="text-xs text-gray-600 mb-4">將您部署好的 Apps Script Web App 網址貼在下方，即可一鍵拉取最新資料。</p>
+                        <div class="flex flex-col sm:flex-row gap-3">
+                            <input type="text" id="api-url" value="https://script.google.com/macros/s/AKfycbzzmDBB0v7ovUbO3oi2NGAAPLUL3zqOcUTlATlCAWXbmrWWCpxNqB0jDfpMAUcTw2_dQA/exec" placeholder="https://script.google.com/macros/s/..../exec" class="flex-1 p-3 rounded border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm">
+                            <button onclick="fetchFromAPI()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded shadow transition">
+                                <i class="fa-solid fa-cloud-arrow-down mr-2"></i>載入 API 資料
+                            </button>
+                        </div>
+                    </div>
+
+                    <h3 class="font-bold text-lg mb-4 text-gray-700"><i class="fa-solid fa-file-csv mr-2"></i>方式二：手動上傳 CSV 檔案</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <!-- Sheet 1 Upload -->
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition bg-gray-50">
+                            <i class="fa-solid fa-users text-3xl text-gray-400 mb-3"></i>
+                            <h3 class="font-bold text-lg mb-2">上傳 Sheet 1 (新人資料)</h3>
+                            <p class="text-xs text-gray-500 mb-4">包含 Batch Date(A), Batch(B), ID(C), Name(D), Dept(H), HR/Ops(L), RJ/NJ(Q), Join Date(T), Last Date(AP), 梯次年月(AS)</p>
+                            <input type="file" id="file-sheet1" accept=".csv" class="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+                        </div>
+
+                        <!-- Sheet 2 Upload -->
+                        <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition bg-gray-50">
+                            <i class="fa-solid fa-file-invoice-dollar text-3xl text-gray-400 mb-3"></i>
+                            <h3 class="font-bold text-lg mb-2">上傳 Sheet 2 (銷售表現)</h3>
+                            <p class="text-xs text-gray-500 mb-4">包含 Month(B), Staff ID(I), Actual Sales(N), Realized Sales(R)</p>
+                            <input type="file" id="file-sheet2" accept=".csv" class="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-center space-x-4">
+                        <button onclick="processUploadedFiles()" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition transform hover:-translate-y-0.5">
+                            <i class="fa-solid fa-upload mr-2"></i>處理上傳的 CSV
+                        </button>
+                        <button onclick="loadMockData()" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-lg shadow-md transition transform hover:-translate-y-0.5">
+                            <i class="fa-solid fa-wand-magic-sparkles mr-2"></i>載入系統模擬數據
+                        </button>
+                    </div>
+                    <div id="upload-status" class="mt-4 text-center text-sm font-semibold text-red-600"></div>
+                </div>
+            </div>
+
+            <!-- Tab: Dashboard -->
+            <div id="tab-dashboard">
+                
+                <!-- 頂部狀態列 -->
+                <div class="flex justify-end mb-2">
+                    <div class="text-sm text-gray-500 whitespace-nowrap" id="data-status">
+                        尚未載入資料，請前往「資料來源設定」。
+                    </div>
+                </div>
+
+                <!-- ===== 區塊 1: 銷售與招募總覽 ===== -->
+                <h2 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2"><i class="fa-solid fa-money-bill-trend-up mr-2"></i>銷售與招募總覽</h2>
+                
+                <!-- 銷售專屬 Filter -->
+                <div class="glass-card mb-6 flex flex-col lg:flex-row items-center justify-between border-l-4 border-indigo-500">
+                    <div class="flex flex-col lg:flex-row items-start lg:items-center space-y-4 lg:space-y-0 lg:space-x-4 w-full">
+                        <div class="flex items-center space-x-2">
+                            <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-filter mr-2"></i>招募來源：</label>
+                            <select id="sales-filter-source" onchange="updateSalesData()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none">
+                                <option value="ALL">全部 (All)</option>
+                                <option value="HR">HR</option>
+                                <option value="Ops">Ops</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-user-tag mr-2"></i>人員類型：</label>
+                            <select id="sales-filter-role" onchange="updateSalesData()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none">
+                                <option value="ALL">全部 (All)</option>
+                                <option value="NJ">NJ</option>
+                                <option value="RJ">RJ</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-chart-pie mr-2"></i>分析指標：</label>
+                            <select id="sales-filter-metric" onchange="updateSalesData()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none">
+                                <option value="ACTUAL">分析 Actual Sales</option>
+                                <option value="REALIZED">分析 Realized Sales</option>
+                            </select>
+                        </div>
+                        <!-- 銷售區塊專屬年月 Checkbox 篩選器 -->
+                        <div class="flex items-center space-x-2 custom-dropdown relative">
+                            <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-calendar-days mr-2"></i>梯次年月：</label>
+                            <div class="relative">
+                                <button type="button" onclick="toggleDropdown('sales-period-panel')" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2 flex justify-between items-center min-w-[130px] outline-none">
+                                    <span id="sales-period-text" class="truncate mr-2">全部梯次</span>
+                                    <i class="fa-solid fa-chevron-down text-gray-500 text-xs"></i>
+                                </button>
+                                <div id="sales-period-panel" class="dropdown-panel hidden absolute z-50 w-56 bg-white border border-gray-200 rounded-md shadow-xl mt-1 max-h-60 overflow-y-auto right-0 lg:left-0 text-sm">
+                                    <!-- dynamically populated -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 銷售 KPI Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div class="glass-card">
+                        <div class="flex items-center">
+                            <div class="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
+                                <i class="fa-solid fa-users text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium mb-1">符合條件人數 (Headcount)</p>
+                                <p class="text-3xl font-bold text-gray-800" id="kpi-headcount">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="glass-card">
+                        <div class="flex items-center">
+                            <div class="p-3 rounded-full bg-indigo-100 text-indigo-600 mr-4">
+                                <i class="fa-solid fa-hand-holding-dollar text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium mb-1">總實際銷售 (Actual Sales - NJ)</p>
+                                <p class="text-3xl font-bold text-gray-800" id="kpi-actual">HK$ 0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="glass-card">
+                        <div class="flex items-center">
+                            <div class="p-3 rounded-full bg-emerald-100 text-emerald-600 mr-4">
+                                <i class="fa-solid fa-sack-dollar text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium mb-1">總已實現銷售 (Realized Sales - RJ)</p>
+                                <p class="text-3xl font-bold text-gray-800" id="kpi-realized">HK$ 0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section (Sales) -->
+                <div class="glass-card mb-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">各梯次人數分佈 (NJ vs RJ Headcount)</h3>
+                    <div class="relative h-64">
+                        <canvas id="chart-sales-headcount"></canvas>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+                    <div class="glass-card">
+                        <h3 id="title-chart-sales" class="text-lg font-bold text-gray-800 mb-4 text-center">各梯次總銷售表現 (點擊柱狀圖查看明細)</h3>
+                        <div class="relative h-72">
+                            <canvas id="chart-sales"></canvas>
+                        </div>
+                    </div>
+                    
+                    <div class="glass-card">
+                        <h3 id="title-chart-avg-sales" class="text-lg font-bold text-gray-800 mb-4 text-center">各梯次人均每月銷售表現 (Avg. Monthly Sales per Head)</h3>
+                        <div class="relative h-72">
+                            <canvas id="chart-avg-sales"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== 區塊 2: 員工留任與離職分析 ===== -->
+                <h2 class="text-xl font-bold text-rose-800 mb-4 border-b-2 border-rose-100 pb-2 mt-8"><i class="fa-solid fa-door-open mr-2"></i>員工留任與離職分析</h2>
+                
+                <!-- 離職專屬 Filter -->
+                <div class="glass-card mb-6 flex flex-col lg:flex-row items-center justify-between border-l-4 border-rose-400">
+                    <div class="flex flex-col lg:flex-row items-start lg:items-center space-y-4 lg:space-y-0 lg:space-x-4 w-full">
+                        <div class="flex items-center space-x-2">
+                            <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-filter mr-2"></i>招募來源 (留任)：</label>
+                            <select id="attrition-filter-source" onchange="updateAttritionData()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-rose-500 focus:border-rose-500 block p-2 outline-none">
+                                <option value="ALL">全部 (All)</option>
+                                <option value="HR">HR</option>
+                                <option value="Ops">Ops</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-user-tag mr-2"></i>人員類型 (留任)：</label>
+                            <select id="attrition-filter-role" onchange="updateAttritionData()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-rose-500 focus:border-rose-500 block p-2 outline-none">
+                                <option value="ALL">全部 (All)</option>
+                                <option value="NJ">NJ</option>
+                                <option value="RJ">RJ</option>
+                            </select>
+                        </div>
+                        <!-- 離職區塊專屬年月 Checkbox 篩選器 -->
+                        <div class="flex items-center space-x-2 custom-dropdown relative">
+                            <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-calendar-days mr-2"></i>梯次年月：</label>
+                            <div class="relative">
+                                <button type="button" onclick="toggleDropdown('attrition-period-panel')" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-rose-500 focus:border-rose-500 p-2 flex justify-between items-center min-w-[130px] outline-none">
+                                    <span id="attrition-period-text" class="truncate mr-2">全部梯次</span>
+                                    <i class="fa-solid fa-chevron-down text-gray-500 text-xs"></i>
+                                </button>
+                                <div id="attrition-period-panel" class="dropdown-panel hidden absolute z-50 w-56 bg-white border border-gray-200 rounded-md shadow-xl mt-1 max-h-60 overflow-y-auto right-0 lg:left-0 text-sm">
+                                    <!-- dynamically populated -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attrition KPI Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div class="glass-card">
+                        <div class="flex items-center">
+                            <div class="p-3 rounded-full bg-emerald-100 text-emerald-600 mr-4">
+                                <i class="fa-solid fa-user-check text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium mb-1">目前在職人數 (Active Staff)</p>
+                                <p class="text-3xl font-bold text-gray-800" id="kpi-active">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="glass-card">
+                        <div class="flex items-center">
+                            <div class="p-3 rounded-full bg-rose-100 text-rose-600 mr-4">
+                                <i class="fa-solid fa-user-minus text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium mb-1">總離職人數 (Resigned)</p>
+                                <p class="text-3xl font-bold text-gray-800" id="kpi-resigned">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="glass-card">
+                        <div class="flex items-center">
+                            <div class="p-3 rounded-full bg-amber-100 text-amber-600 mr-4">
+                                <i class="fa-solid fa-percent text-xl"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-500 font-medium mb-1">整體留任率 (Retention Rate)</p>
+                                <p class="text-3xl font-bold text-gray-800" id="kpi-retention-rate">0%</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Attrition Charts -->
+                <div class="glass-card mb-6">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">每月入職人數趨勢 (New Joiners per Month)</h3>
+                    <div class="relative h-64">
+                        <canvas id="chart-joiners"></canvas>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="glass-card">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">各梯次留任與離職狀況 (Retention by Batch)</h3>
+                        <div class="relative h-72">
+                            <canvas id="chart-retention"></canvas>
+                        </div>
+                    </div>
+                    <div class="glass-card">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">在職時間分佈 (點擊圖表查看詳細名單)</h3>
+                        <div class="relative h-72">
+                            <canvas id="chart-tenure"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div> <!-- End of app-container -->
+
+    <!-- 銷售詳細名單 Modal -->
     <div id="sales-modal" class="fixed inset-0 z-[100] hidden bg-gray-900 bg-opacity-60 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
         <div class="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden">
             <div class="p-5 border-b flex justify-between items-center bg-indigo-50">
@@ -334,7 +361,7 @@
                     <i class="fa-solid fa-times text-2xl"></i>
                 </button>
             </div>
-            <div class="p-0 overflow-y-auto flex-1 bg-white">
+            <div class="p-0 overflow-y-auto flex-1 bg-white scrollbar-thin">
                 <table class="min-w-full text-left text-sm text-gray-600">
                     <thead class="bg-gray-100 text-gray-800 uppercase font-semibold sticky top-0 shadow-sm">
                         <tr>
@@ -346,9 +373,7 @@
                             <th class="px-6 py-4 whitespace-nowrap text-right text-emerald-700">平均月銷售 (HK$)</th>
                         </tr>
                     </thead>
-                    <tbody id="sales-modal-tbody" class="divide-y divide-gray-200">
-                        <!-- rows inserted dynamically -->
-                    </tbody>
+                    <tbody id="sales-modal-tbody" class="divide-y divide-gray-200"></tbody>
                 </table>
             </div>
             <div class="bg-gray-50 p-4 border-t text-right">
@@ -357,7 +382,7 @@
         </div>
     </div>
 
-    <!-- 在職時間詳細名單 Modal (彈出視窗) -->
+    <!-- 在職時間詳細名單 Modal -->
     <div id="tenure-modal" class="fixed inset-0 z-[100] hidden bg-gray-900 bg-opacity-60 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
         <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
             <div class="p-5 border-b flex justify-between items-center bg-indigo-50">
@@ -366,7 +391,7 @@
                     <i class="fa-solid fa-times text-2xl"></i>
                 </button>
             </div>
-            <div class="p-0 overflow-y-auto flex-1 bg-white">
+            <div class="p-0 overflow-y-auto flex-1 bg-white scrollbar-thin">
                 <table class="min-w-full text-left text-sm text-gray-600">
                     <thead class="bg-gray-100 text-gray-800 uppercase font-semibold sticky top-0 shadow-sm">
                         <tr>
@@ -376,9 +401,7 @@
                             <th class="px-6 py-4 whitespace-nowrap">Dept/Team (H)</th>
                         </tr>
                     </thead>
-                    <tbody id="tenure-modal-tbody" class="divide-y divide-gray-200">
-                        <!-- rows inserted dynamically -->
-                    </tbody>
+                    <tbody id="tenure-modal-tbody" class="divide-y divide-gray-200"></tbody>
                 </table>
             </div>
             <div class="bg-gray-50 p-4 border-t text-right">
@@ -389,30 +412,70 @@
 
     <!-- Application Logic -->
     <script>
-        // --- Constants (Column Indices 0-based) ---
-        // Sheet 1: A(0)=BATCH DATE, B(1)=BATCH, C(2)=STAFF ID, D(3)=NAME, H(7)=DEPT, L(11)=HR/Ops, Q(16)=RJ/NJ, T(19)=Join Date, AP(41)=Last Date, AS(44)=Group Date
+        // ===== 登入驗證與 SHA-256 Hash 邏輯 =====
+        // 密碼：29768888 的 SHA-256 Hash 值
+        const EXPECTED_HASH = "78e2461877484439c362095817748f38d35676f62f8846c434255567b079782a"; 
+
+        async function verifyPassword() {
+            const pwdInput = document.getElementById('login-password').value;
+            const errorMsg = document.getElementById('login-error');
+            
+            if (!pwdInput) {
+                errorMsg.innerText = "請輸入密碼！";
+                return;
+            }
+
+            try {
+                const msgBuffer = new TextEncoder().encode(pwdInput);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+                if (hashHex === EXPECTED_HASH) {
+                    document.getElementById('login-container').classList.add('hidden');
+                    document.getElementById('app-container').classList.remove('hidden');
+                    
+                    const defaultApiUrl = document.getElementById('api-url').value;
+                    if (defaultApiUrl && defaultApiUrl.trim() !== '') {
+                        fetchFromAPI();
+                    } else {
+                        loadMockData(); 
+                    }
+                } else {
+                    errorMsg.innerText = "密碼錯誤，請重新輸入。";
+                    document.getElementById('login-password').value = '';
+                }
+            } catch (err) {
+                console.error("加密驗證發生錯誤:", err);
+                errorMsg.innerText = "系統驗證錯誤。";
+            }
+        }
+
+        document.getElementById('login-password')?.addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') verifyPassword();
+        });
+
+
+        // --- Constants ---
         const S1_BATCH_DATE = 0;
         const S1_BATCH = 1;
         const S1_STAFF_ID = 2;
-        const S1_NAME = 3;      // 新增：D行 Name
-        const S1_DEPT = 7;      // 新增：H行 Dept
+        const S1_NAME = 3;
+        const S1_DEPT = 7;
         const S1_SOURCE = 11;
         const S1_ROLE = 16;
         const S1_JOIN_DATE = 19;
         const S1_LAST_DATE = 41;
         const S1_AS_DATE = 44; 
 
-        // Sheet 2: B(1)=Month, I(8)=STAFF ID, N(13)=ACTUAL SALES(NJ), R(17)=REALIZED SALES(RJ)
         const S2_MONTH = 1;
         const S2_STAFF_ID = 8;
         const S2_ACTUAL = 13;
         const S2_REALIZED = 17;
 
-        // Global Data Store
-        let globalStaffMap = {}; // { staffId: { batch, source, role, joinDate, lastDate } }
-        let globalSalesData = []; // [ { month, staffId, actual, realized } ]
+        let globalStaffMap = {};
+        let globalSalesData = [];
         
-        // Chart Instances
         let chartSalesHcIns = null; 
         let chartSalesIns = null;
         let chartAvgSalesIns = null;
@@ -420,29 +483,23 @@
         let chartTenureIns = null;
         let chartJoinersIns = null; 
 
-        // --- Custom Dropdown Logic (新增 Checkbox 選單控制) ---
+        // --- Custom Dropdown Logic ---
         function toggleDropdown(panelId) {
             const panel = document.getElementById(panelId);
             const isHidden = panel.classList.contains('hidden');
-            // 先關閉所有其他的 panel
             document.querySelectorAll('.dropdown-panel').forEach(p => p.classList.add('hidden'));
-            if (isHidden) {
-                panel.classList.remove('hidden');
-            }
+            if (isHidden) panel.classList.remove('hidden');
         }
 
-        // 點擊空白處自動關閉選單
         window.addEventListener('click', function(e) {
             if (!e.target.closest('.custom-dropdown')) {
                 document.querySelectorAll('.dropdown-panel').forEach(p => p.classList.add('hidden'));
             }
         });
 
-        // --- UI Logic ---
         function switchTab(tabId) {
             document.getElementById('tab-dashboard').classList.add('hide');
             document.getElementById('tab-data-source').classList.add('hide');
-            
             document.getElementById('btn-dashboard').classList.remove('bg-indigo-700');
             document.getElementById('btn-data').classList.remove('bg-indigo-700');
 
@@ -455,7 +512,6 @@
             }
         }
 
-        // --- Data Processing Helpers ---
         function formatCurrency(num) {
             return 'HK$ ' + num.toLocaleString('en-US', { maximumFractionDigits: 0 });
         }
@@ -467,152 +523,94 @@
             return parseFloat(cleaned) || 0;
         }
 
-        // --- 新增：智能日期解析器 (處理 DD/MM/YYYY 與 Excel 數字格式) ---
         function parseCustomDate(dateStr) {
             if (!dateStr) return null;
             let dStr = dateStr.toString().trim();
             if (dStr === '' || dStr === '-' || dStr.toUpperCase() === 'N/A' || dStr.toUpperCase() === '#N/A') return null;
 
-            // 1. 處理 Excel Serial Date (例如 45566 = 2024-10-01)
             if (!isNaN(dStr) && Number(dStr) > 20000) {
-                // Excel 的日期基準是 1899-12-30，需減去 25569 天來轉換為 UNIX 時間戳
                 return new Date((Number(dStr) - 25569) * 86400 * 1000);
             }
 
-            // 2. 處理香港常用的 DD/MM/YYYY 或 DD-MM-YYYY 格式 (防呆：避免 1/10/2025 被當成 1月10日)
             let matchDMY = dStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
             if (matchDMY) {
                 let day = parseInt(matchDMY[1], 10);
                 let month = parseInt(matchDMY[2], 10);
                 let year = parseInt(matchDMY[3], 10);
-                
-                // 如果月分 > 12，代表原本可能是 MM/DD/YYYY 格式，自動互換修正
-                if (month > 12 && day <= 12) {
-                    let temp = day;
-                    day = month;
-                    month = temp;
-                }
+                if (month > 12 && day <= 12) { let temp = day; day = month; month = temp; }
                 return new Date(`${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}T00:00:00`);
             }
 
-            // 3. 原生 Date 解析 (處理 YYYY-MM-DD 等標準格式)
             let d = new Date(dStr);
             if (!isNaN(d.getTime())) return d;
-
             return null;
         }
 
-        // 修改：強化日期解析，精準轉換 1-2026, 10-2025 格式為 YYYY年MM月
         function getBatchGroup(info) {
             let dStr = info.asDate;
             if (dStr && dStr.trim() !== '') {
                 dStr = dStr.trim();
-                
-                // 1. 檢查 MM-YYYY 或 M-YYYY (例如 1-2026, 10-2025)
                 let matchMY = dStr.match(/^(\d{1,2})[-\/](\d{4})$/);
-                if (matchMY) {
-                    return `${matchMY[2]}年${matchMY[1].padStart(2, '0')}月`;
-                }
-
-                // 2. 檢查 YYYY-MM 或 YYYY年MM月
+                if (matchMY) return `${matchMY[2]}年${matchMY[1].padStart(2, '0')}月`;
                 let matchYM = dStr.match(/(\d{4})[-\/年]\s*(\d{1,2})/);
-                if (matchYM) {
-                    return `${matchYM[1]}年${matchYM[2].padStart(2, '0')}月`;
-                }
-
-                // 3. 原生 Date 解析
+                if (matchYM) return `${matchYM[1]}年${matchYM[2].padStart(2, '0')}月`;
                 let d = new Date(dStr);
                 if (!isNaN(d.getTime())) {
-                    let y = d.getFullYear();
-                    let m = (d.getMonth() + 1).toString().padStart(2, '0');
-                    return `${y}年${m}月`;
+                    return `${d.getFullYear()}年${(d.getMonth() + 1).toString().padStart(2, '0')}月`;
                 } 
-                
-                return dStr; // 若都失敗則直接回傳字串
+                return dStr;
             }
-            
-            // 4. Fallback 回原本抓取 Batch 字串的邏輯
             const rawBatch = info.batch || 'Unknown';
             const str = rawBatch.toString().trim();
             const match = str.match(/^(\d+)/);
-            if (match) {
-                return `未知年份-${match[1].padStart(2, '0')}月`;
-            }
+            if (match) return `未知年份-${match[1].padStart(2, '0')}月`;
             return str;
         }
 
-        // 修改：強化排序演算法，確保跨年份排序絕對正確
         function getSortedBatches(statsObj) {
             return Object.keys(statsObj).sort((a, b) => {
                 const getWeight = (str) => {
-                    // 嘗試抓取 YYYY 跟 MM 計算絕對權重 (例如 2025年10月 -> 202510)
                     let match1 = str.match(/(\d{4})[-\/年]\s*(\d{1,2})/);
                     if (match1) return parseInt(match1[1]) * 100 + parseInt(match1[2]);
-                    
                     let match2 = str.match(/^(\d{1,2})[-\/](\d{4})/);
                     if (match2) return parseInt(match2[2]) * 100 + parseInt(match2[1]);
-                    
                     return null;
                 };
-
-                let weightA = getWeight(a);
-                let weightB = getWeight(b);
-
-                if (weightA !== null && weightB !== null) {
-                    return weightA - weightB; // 數字越小(越早)越前面
-                }
-
+                let weightA = getWeight(a), weightB = getWeight(b);
+                if (weightA !== null && weightB !== null) return weightA - weightB;
                 return a.localeCompare(b);
             });
         }
 
-        // 修改：強化年資計算邏輯，並套用智能日期解析器
         function calculateTenureMonths(joinDateStr, lastDateStr) {
             const start = parseCustomDate(joinDateStr);
             if (!start) return -1;
-
             let end = parseCustomDate(lastDateStr);
-            if (!end) {
-                end = new Date(); // 仍然在職 (計算到今天)
-            }
-
+            if (!end) end = new Date();
             let diffTime = end.getTime() - start.getTime();
-            if (diffTime < 0) diffTime = 0; // 避免因為資料打錯 (離職日早於入職日) 而產生負數或跑到錯誤區間
-
-            return diffTime / (1000 * 60 * 60 * 24 * 30.44); // 回傳近似月數
+            if (diffTime < 0) diffTime = 0;
+            return diffTime / (1000 * 60 * 60 * 24 * 30.44);
         }
 
-        // --- 修改：產生梯次年月 Checkbox 過濾選項 ---
         function populatePeriodFilters() {
             let uniquePeriods = new Set();
-            
             Object.values(globalStaffMap).forEach(info => {
                 let bg = getBatchGroup(info);
-                if (bg !== 'Unknown' && !bg.startsWith('未知年份')) {
-                    uniquePeriods.add(bg);
-                }
+                if (bg !== 'Unknown' && !bg.startsWith('未知年份')) uniquePeriods.add(bg);
             });
-
-            // 反向排序，讓最新的年月在最上面
             const sortedPeriods = Array.from(uniquePeriods).sort((a, b) => b.localeCompare(a));
-
             ['sales', 'attrition'].forEach(prefix => {
                 const panel = document.getElementById(`${prefix}-period-panel`);
                 if (!panel) return;
                 panel.innerHTML = '';
-
-                // Add "Select All" Checkbox
                 const selectAllDiv = document.createElement('div');
                 selectAllDiv.className = 'p-3 hover:bg-gray-50 border-b border-gray-200 sticky top-0 bg-white z-10';
                 selectAllDiv.innerHTML = `
                     <label class="flex items-center space-x-3 cursor-pointer font-bold text-gray-700">
                         <input type="checkbox" id="${prefix}-select-all" checked onchange="toggleAllPeriods('${prefix}')" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer">
                         <span>全選 (Select All)</span>
-                    </label>
-                `;
+                    </label>`;
                 panel.appendChild(selectAllDiv);
-
-                // Add individual checkboxes
                 sortedPeriods.forEach(p => {
                     const div = document.createElement('div');
                     div.className = 'p-2 px-3 hover:bg-gray-50';
@@ -620,30 +618,24 @@
                         <label class="flex items-center space-x-3 cursor-pointer text-gray-700">
                             <input type="checkbox" value="${p}" checked onchange="updatePeriodSelection('${prefix}')" class="${prefix}-period-checkbox rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer">
                             <span>${p}</span>
-                        </label>
-                    `;
+                        </label>`;
                     panel.appendChild(div);
                 });
-                
                 updatePeriodSelectionText(prefix);
             });
         }
 
-        // --- 新增 Checkbox 狀態管理 ---
         function toggleAllPeriods(prefix) {
             const selectAllCb = document.getElementById(`${prefix}-select-all`);
             const checkboxes = document.querySelectorAll(`.${prefix}-period-checkbox`);
             checkboxes.forEach(cb => cb.checked = selectAllCb.checked);
             updatePeriodSelectionText(prefix);
-            
-            // Trigger chart updates
             if (prefix === 'sales') updateSalesData();
             if (prefix === 'attrition') updateAttritionData();
         }
 
         function updatePeriodSelection(prefix) {
             updatePeriodSelectionText(prefix);
-            // Trigger chart updates
             if (prefix === 'sales') updateSalesData();
             if (prefix === 'attrition') updateAttritionData();
         }
@@ -653,7 +645,6 @@
             const checked = document.querySelectorAll(`.${prefix}-period-checkbox:checked`);
             const selectAllCb = document.getElementById(`${prefix}-select-all`);
             const btnText = document.getElementById(`${prefix}-period-text`);
-
             if (checked.length === checkboxes.length && checkboxes.length > 0) {
                 if(selectAllCb) selectAllCb.checked = true;
                 btnText.innerText = "全部梯次";
@@ -666,169 +657,106 @@
             }
         }
 
-        // --- 修改：取得被選中的年月 ---
         function getSelectedPeriods(prefix) {
             const checkboxes = document.querySelectorAll(`.${prefix}-period-checkbox:checked`);
             return Array.from(checkboxes).map(cb => cb.value);
         }
 
-        // --- Main Update Trigger ---
         function updateDashboard() {
             if(Object.keys(globalStaffMap).length === 0) return;
-            
             updateSalesData();
             updateAttritionData();
-            
             const totalStaff = Object.keys(globalStaffMap).length;
             document.getElementById('data-status').innerHTML = `<span class="text-green-600 font-bold"><i class="fa-solid fa-check-circle mr-1"></i>系統共載入 ${totalStaff} 筆人員資料</span>`;
         }
 
-        // --- 1. Update Sales Section ---
         function updateSalesData() {
             const sourceFilter = document.getElementById('sales-filter-source').value;
             const roleFilter = document.getElementById('sales-filter-role').value;
             const metricFilter = document.getElementById('sales-filter-metric').value;
             const selectedPeriods = getSelectedPeriods('sales');
+            let filteredStaffIds = new Set(), statsByBatch = {}, totalHeadcount = 0;
 
-            let filteredStaffIds = new Set();
-            let statsByBatch = {}; 
-            let totalHeadcount = 0;
-
-            // Filter Staff for Sales
             for (const [staffId, info] of Object.entries(globalStaffMap)) {
                 if (sourceFilter !== 'ALL' && info.source !== sourceFilter) continue;
                 if (roleFilter !== 'ALL' && info.role !== roleFilter) continue;
-                
-                const batchGroup = getBatchGroup(info); // 取得梯次年月
-                
-                // 套用年月 Checkbox 過濾
+                const batchGroup = getBatchGroup(info);
                 if (selectedPeriods.length > 0 && !selectedPeriods.includes(batchGroup)) continue;
-                
                 filteredStaffIds.add(staffId);
-                
                 const role = (info.role === 'NJ' || info.role === 'RJ') ? info.role : 'OTHER';
-                
                 if (!statsByBatch[batchGroup]) {
-                    // 修改：新增 records (Set) 來精確計算「有上數的獨特月份數量」
                     statsByBatch[batchGroup] = { 
                         NJ: { hc: 0, actual: 0, realized: 0, records: new Set() }, 
                         RJ: { hc: 0, actual: 0, realized: 0, records: new Set() } 
                     };
                 }
-                
-                if (role === 'NJ' || role === 'RJ') {
-                    statsByBatch[batchGroup][role].hc += 1;
-                }
+                if (role === 'NJ' || role === 'RJ') statsByBatch[batchGroup][role].hc += 1;
                 totalHeadcount += 1;
             }
 
-            // Calculate Sales for Filtered Staff
-            let totalActual = 0;
-            let totalRealized = 0;
-
+            let totalActual = 0, totalRealized = 0;
             globalSalesData.forEach(sale => {
                 if (filteredStaffIds.has(sale.staffId)) {
                     const info = globalStaffMap[sale.staffId];
                     const batchGroup = getBatchGroup(info);
                     const role = (info.role === 'NJ' || info.role === 'RJ') ? info.role : 'OTHER';
-                    
-                    totalActual += sale.actual;
-                    totalRealized += sale.realized;
-
+                    totalActual += sale.actual; totalRealized += sale.realized;
                     if (statsByBatch[batchGroup] && (role === 'NJ' || role === 'RJ')) {
                         statsByBatch[batchGroup][role].actual += sale.actual;
                         statsByBatch[batchGroup][role].realized += sale.realized;
-                        
-                        // 修改：紀錄這個人這個月有上數 (Staff ID + Month 組合成唯一值)
-                        if (sale.month) {
-                            statsByBatch[batchGroup][role].records.add(`${sale.staffId}-${sale.month}`);
-                        }
+                        if (sale.month) statsByBatch[batchGroup][role].records.add(`${sale.staffId}-${sale.month}`);
                     }
                 }
             });
 
-            // Update Sales KPIs
             document.getElementById('kpi-headcount').innerText = totalHeadcount;
             document.getElementById('kpi-actual').innerText = formatCurrency(totalActual);
             document.getElementById('kpi-realized').innerText = formatCurrency(totalRealized);
-
             renderSalesCharts(statsByBatch, metricFilter);
         }
 
-        // --- 2. Update Attrition Section ---
         function updateAttritionData() {
             const sourceFilter = document.getElementById('attrition-filter-source').value;
             const roleFilter = document.getElementById('attrition-filter-role').value;
             const selectedPeriods = getSelectedPeriods('attrition');
-
-            let statsByBatch = {}; 
-            let totalHeadcount = 0;
-            let totalResigned = 0;
-            let totalActive = 0;
+            let statsByBatch = {}, totalHeadcount = 0, totalResigned = 0, totalActive = 0;
             let tenureBuckets = { '<3個月': 0, '3-6個月': 0, '6-12個月': 0 };
 
-            // Filter Staff for Attrition
             for (const [staffId, info] of Object.entries(globalStaffMap)) {
                 if (sourceFilter !== 'ALL' && info.source !== sourceFilter) continue;
                 if (roleFilter !== 'ALL' && info.role !== roleFilter) continue;
-
                 const batchGroup = getBatchGroup(info);
-                
-                // 套用年月 Checkbox 過濾
                 if (selectedPeriods.length > 0 && !selectedPeriods.includes(batchGroup)) continue;
-                
-                if (!statsByBatch[batchGroup]) {
-                    statsByBatch[batchGroup] = { ACTIVE: 0, RESIGNED: 0 };
-                }
-                
+                if (!statsByBatch[batchGroup]) statsByBatch[batchGroup] = { ACTIVE: 0, RESIGNED: 0 };
                 totalHeadcount += 1;
-
-                // 修改：強化在職/離職狀態判斷邏輯 (無日期 或 填了破折號 等於 在職)
                 let rawLastDate = info.lastDate ? info.lastDate.trim().toUpperCase() : '';
                 const isResigned = rawLastDate !== '' && rawLastDate !== '-' && rawLastDate !== 'N/A' && rawLastDate !== '#N/A';
-                
-                if (isResigned) {
-                    statsByBatch[batchGroup].RESIGNED += 1;
-                    totalResigned += 1;
-                } else {
-                    statsByBatch[batchGroup].ACTIVE += 1;
-                    totalActive += 1;
-                }
-
+                if (isResigned) { statsByBatch[batchGroup].RESIGNED += 1; totalResigned += 1; }
+                else { statsByBatch[batchGroup].ACTIVE += 1; totalActive += 1; }
                 let months = calculateTenureMonths(info.joinDate, info.lastDate);
                 if (months >= 0) {
                     if (months < 3) tenureBuckets['<3個月']++;
                     else if (months < 6) tenureBuckets['3-6個月']++;
-                    else tenureBuckets['6-12個月']++; // 6個月以上的全部歸類在此
+                    else tenureBuckets['6-12個月']++;
                 }
             }
-
-            // Update Attrition KPIs
             document.getElementById('kpi-active').innerText = totalActive;
             document.getElementById('kpi-resigned').innerText = totalResigned;
             let retentionRate = totalHeadcount > 0 ? ((totalActive / totalHeadcount) * 100).toFixed(1) : 0;
             document.getElementById('kpi-retention-rate').innerText = retentionRate + '%';
-
             renderAttritionCharts(statsByBatch, tenureBuckets);
         }
 
-        // --- Render Functions ---
         function renderSalesCharts(statsByBatch, metricFilter) {
             const batches = getSortedBatches(statsByBatch);
             const metricKey = metricFilter === 'ACTUAL' ? 'actual' : 'realized';
             const metricLabel = metricFilter === 'ACTUAL' ? 'Actual Sales' : 'Realized Sales';
 
-            document.getElementById('title-chart-sales').innerText = `各梯次總銷售表現 (點擊柱狀圖查看明細)`;
-            // 修改：標題更名為每月人均
-            document.getElementById('title-chart-avg-sales').innerText = `各梯次人均每月銷售表現 (Avg. Monthly Sales per Head)`;
-
             if (chartSalesHcIns) chartSalesHcIns.destroy();
             if (chartSalesIns) chartSalesIns.destroy();
             if (chartAvgSalesIns) chartAvgSalesIns.destroy();
 
-            // --- 新增：Chart 0: 各梯次人數分佈 (NJ vs RJ Headcount) ---
-            const ctxSalesHc = document.getElementById('chart-sales-headcount').getContext('2d');
-            chartSalesHcIns = new Chart(ctxSalesHc, {
+            chartSalesHcIns = new Chart(document.getElementById('chart-sales-headcount'), {
                 type: 'bar',
                 data: {
                     labels: batches,
@@ -837,533 +765,218 @@
                         { label: 'RJ 人數', data: batches.map(b => statsByBatch[b].RJ.hc), backgroundColor: 'rgba(16, 185, 129, 0.5)', borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1 }
                     ]
                 },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    interaction: { mode: 'index', intersect: false }, 
-                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } 
-                }
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
             });
 
-            // --- 升級：Chart 1: Total Sales (點擊彈出銷售明細) ---
-            const ctxSales = document.getElementById('chart-sales').getContext('2d');
-            chartSalesIns = new Chart(ctxSales, {
+            const salesOpts = {
+                responsive: true, maintainAspectRatio: false,
+                onHover: (event, elements, chart) => {
+                    const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+                    event.native.target.style.cursor = points.length ? 'pointer' : 'default';
+                },
+                onClick: (event, elements, chart) => {
+                    const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
+                    if (points.length > 0) {
+                        const dsIdx = points[0].datasetIndex, idx = points[0].index, batch = chart.data.labels[idx];
+                        showSalesDetails(batch, dsIdx === 0 ? 'NJ' : 'RJ', metricFilter);
+                    }
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            afterLabel: (context) => {
+                                const b = context.label, isNJ = context.datasetIndex === 0;
+                                const hc = isNJ ? statsByBatch[b].NJ.hc : statsByBatch[b].RJ.hc;
+                                const rCount = isNJ ? statsByBatch[b].NJ.records.size : statsByBatch[b].RJ.records.size;
+                                return `(人數: ${hc} 人, 平均上數: ${hc > 0 ? (rCount/hc).toFixed(1) : 0} 個月) - 點擊查看明細`;
+                            }
+                        }
+                    }
+                },
+                scales: { y: { beginAtZero: true, ticks: { callback: v => 'HK$ ' + (v / 1000) + 'k' } } }
+            };
+
+            chartSalesIns = new Chart(document.getElementById('chart-sales'), {
                 type: 'bar',
                 data: {
                     labels: batches,
                     datasets: [
-                        { label: `總 ${metricLabel} (NJ人員)`, data: batches.map(b => statsByBatch[b].NJ[metricKey]), backgroundColor: 'rgba(59, 130, 246, 0.7)', borderWidth: 1 },
-                        { label: `總 ${metricLabel} (RJ人員)`, data: batches.map(b => statsByBatch[b].RJ[metricKey]), backgroundColor: 'rgba(16, 185, 129, 0.7)', borderWidth: 1 }
+                        { label: `總 ${metricLabel} (NJ)`, data: batches.map(b => statsByBatch[b].NJ[metricKey]), backgroundColor: 'rgba(59, 130, 246, 0.7)', borderWidth: 1 },
+                        { label: `總 ${metricLabel} (RJ)`, data: batches.map(b => statsByBatch[b].RJ[metricKey]), backgroundColor: 'rgba(16, 185, 129, 0.7)', borderWidth: 1 }
                     ]
                 },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    interaction: { mode: 'index', intersect: false },
-                    onHover: (event, elements, chart) => {
-                        // 修改：精準鎖定滑鼠下方的那根柱子
-                        const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
-                        event.native.target.style.cursor = points.length ? 'pointer' : 'default';
-                    },
-                    onClick: (event, elements, chart) => {
-                        // 修改：精準讀取被點擊的那根柱子，不再預設抓取 NJ
-                        const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
-                        if (points.length > 0) {
-                            const datasetIndex = points[0].datasetIndex;
-                            const index = points[0].index;
-                            const batch = chart.data.labels[index];
-                            const isNJ = datasetIndex === 0;
-                            const roleClicked = isNJ ? 'NJ' : 'RJ';
-                            showSalesDetails(batch, roleClicked, metricFilter);
-                        }
-                    },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                afterLabel: function(context) {
-                                    const batch = context.label;
-                                    const isNJ = context.datasetIndex === 0;
-                                    const hc = isNJ ? statsByBatch[batch].NJ.hc : statsByBatch[batch].RJ.hc;
-                                    // 修改：計算平均上數月數
-                                    const recordsCount = isNJ ? statsByBatch[batch].NJ.records.size : statsByBatch[batch].RJ.records.size;
-                                    const avgMonths = hc > 0 ? (recordsCount / hc).toFixed(1) : 0;
-                                    return `(人數: ${hc} 人, 平均上數: ${avgMonths} 個月) - 點擊查看明細`;
-                                }
-                            }
-                        }
-                    },
-                    scales: { y: { beginAtZero: true, ticks: { callback: v => 'HK$ ' + (v / 1000) + 'k' } } } 
-                }
+                options: salesOpts
             });
 
-            // --- 升級：Chart 2: Average Sales per Month (點擊彈出銷售明細) ---
-            const ctxAvgSales = document.getElementById('chart-avg-sales').getContext('2d');
-            chartAvgSalesIns = new Chart(ctxAvgSales, {
+            chartAvgSalesIns = new Chart(document.getElementById('chart-avg-sales'), {
                 type: 'bar',
                 data: {
                     labels: batches,
-                    // 修改：算法改為 總金額 / 總上數紀錄(月)數
                     datasets: [
-                        { label: `平均月銷售 ${metricLabel} (NJ人員)`, data: batches.map(b => {
-                            const rCount = statsByBatch[b].NJ.records.size;
-                            return rCount > 0 ? (statsByBatch[b].NJ[metricKey] / rCount) : 0;
-                        }), backgroundColor: 'rgba(255, 99, 132, 0.7)', borderWidth: 1 },
-                        
-                        { label: `平均月銷售 ${metricLabel} (RJ人員)`, data: batches.map(b => {
-                            const rCount = statsByBatch[b].RJ.records.size;
-                            return rCount > 0 ? (statsByBatch[b].RJ[metricKey] / rCount) : 0;
-                        }), backgroundColor: 'rgba(255, 159, 64, 0.7)', borderWidth: 1 }
+                        { label: `平均月銷售 ${metricLabel} (NJ)`, data: batches.map(b => statsByBatch[b].NJ.records.size > 0 ? statsByBatch[b].NJ[metricKey]/statsByBatch[b].NJ.records.size : 0), backgroundColor: 'rgba(255, 99, 132, 0.7)', borderWidth: 1 },
+                        { label: `平均月銷售 ${metricLabel} (RJ)`, data: batches.map(b => statsByBatch[b].RJ.records.size > 0 ? statsByBatch[b].RJ[metricKey]/statsByBatch[b].RJ.records.size : 0), backgroundColor: 'rgba(255, 159, 64, 0.7)', borderWidth: 1 }
                     ]
                 },
-                options: { 
-                    responsive: true, 
-                    maintainAspectRatio: false, 
-                    interaction: { mode: 'index', intersect: false },
-                    onHover: (event, elements, chart) => {
-                        // 修改：精準鎖定滑鼠下方的那根柱子
-                        const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
-                        event.native.target.style.cursor = points.length ? 'pointer' : 'default';
-                    },
-                    onClick: (event, elements, chart) => {
-                        // 修改：精準讀取被點擊的那根柱子，不再預設抓取 NJ
-                        const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
-                        if (points.length > 0) {
-                            const datasetIndex = points[0].datasetIndex;
-                            const index = points[0].index;
-                            const batch = chart.data.labels[index];
-                            const isNJ = datasetIndex === 0;
-                            const roleClicked = isNJ ? 'NJ' : 'RJ';
-                            showSalesDetails(batch, roleClicked, metricFilter);
-                        }
-                    },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                afterLabel: function(context) {
-                                    const batch = context.label;
-                                    const isNJ = context.datasetIndex === 0;
-                                    const hc = isNJ ? statsByBatch[batch].NJ.hc : statsByBatch[batch].RJ.hc;
-                                    // 修改：計算平均上數月數
-                                    const recordsCount = isNJ ? statsByBatch[batch].NJ.records.size : statsByBatch[batch].RJ.records.size;
-                                    const avgMonths = hc > 0 ? (recordsCount / hc).toFixed(1) : 0;
-                                    return `(人數: ${hc} 人, 平均上數: ${avgMonths} 個月) - 點擊查看明細`;
-                                }
-                            }
-                        }
-                    },
-                    scales: { y: { beginAtZero: true, ticks: { callback: v => 'HK$ ' + (v / 1000) + 'k' } } } 
-                }
+                options: salesOpts
             });
         }
 
         function renderAttritionCharts(statsByBatch, tenureBuckets) {
             const batches = getSortedBatches(statsByBatch);
-
             if (chartJoinersIns) chartJoinersIns.destroy();
             if (chartRetentionIns) chartRetentionIns.destroy();
             if (chartTenureIns) chartTenureIns.destroy();
 
-            // Chart: 每月入職人數趨勢 (Line Chart)
-            const ctxJoiners = document.getElementById('chart-joiners').getContext('2d');
-            chartJoinersIns = new Chart(ctxJoiners, {
+            chartJoinersIns = new Chart(document.getElementById('chart-joiners'), {
                 type: 'line',
                 data: {
                     labels: batches,
                     datasets: [{
-                        label: '入職總人數 (New Joiners)',
-                        data: batches.map(b => statsByBatch[b].ACTIVE + statsByBatch[b].RESIGNED),
-                        borderColor: 'rgba(79, 70, 229, 1)', // Indigo
-                        backgroundColor: 'rgba(79, 70, 229, 0.15)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: 0.3, // 讓線條有微平滑感
-                        pointBackgroundColor: 'rgba(79, 70, 229, 1)',
-                        pointRadius: 5,
-                        pointHoverRadius: 7
+                        label: '入職人數', data: batches.map(b => statsByBatch[b].ACTIVE + statsByBatch[b].RESIGNED),
+                        borderColor: 'rgba(79, 70, 229, 1)', backgroundColor: 'rgba(79, 70, 229, 0.15)', borderWidth: 3, fill: true, tension: 0.3
                     }]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
-                    plugins: { legend: { display: false } }
-                }
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
             });
 
-            // Chart 3: Retention by Batch
-            const ctxRetention = document.getElementById('chart-retention').getContext('2d');
-            chartRetentionIns = new Chart(ctxRetention, {
+            chartRetentionIns = new Chart(document.getElementById('chart-retention'), {
                 type: 'bar',
                 data: {
                     labels: batches,
                     datasets: [
-                        { label: '在職 (Active)', data: batches.map(b => statsByBatch[b].ACTIVE), backgroundColor: 'rgba(52, 211, 153, 0.8)', borderWidth: 1 },
-                        { label: '已離職 (Resigned)', data: batches.map(b => statsByBatch[b].RESIGNED), backgroundColor: 'rgba(244, 63, 94, 0.8)', borderWidth: 1 }
+                        { label: '在職', data: batches.map(b => statsByBatch[b].ACTIVE), backgroundColor: 'rgba(52, 211, 153, 0.8)' },
+                        { label: '離職', data: batches.map(b => statsByBatch[b].RESIGNED), backgroundColor: 'rgba(244, 63, 94, 0.8)' }
                     ]
                 },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } } }
-                }
+                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } }
             });
 
-            // Chart 4: Tenure Distribution
-            const ctxTenure = document.getElementById('chart-tenure').getContext('2d');
-            chartTenureIns = new Chart(ctxTenure, {
+            chartTenureIns = new Chart(document.getElementById('chart-tenure'), {
                 type: 'doughnut',
                 data: {
                     labels: Object.keys(tenureBuckets),
                     datasets: [{
                         data: Object.values(tenureBuckets),
-                        backgroundColor: [
-                            'rgba(248, 113, 113, 0.8)', // Red (<3m)
-                            'rgba(251, 191, 36, 0.8)',  // Yellow (3-6m)
-                            'rgba(96, 165, 250, 0.8)'   // Blue (6-12m)
-                        ],
-                        borderWidth: 1
+                        backgroundColor: ['rgba(248, 113, 113, 0.8)', 'rgba(251, 191, 36, 0.8)', 'rgba(96, 165, 250, 0.8)']
                     }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { position: 'right' } },
-                    // 新增：Hover 時顯示手指游標，暗示可點擊
-                    onHover: (event, chartElement) => {
-                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
-                    },
-                    // 新增：點擊圓餅圖切片時觸發彈出視窗
-                    onClick: (event, elements) => {
-                        if (elements.length > 0) {
-                            const index = elements[0].index;
-                            const label = chartTenureIns.data.labels[index];
-                            showTenureDetails(label);
-                        }
-                    }
+                    responsive: true, maintainAspectRatio: false,
+                    onHover: (e, el) => { e.native.target.style.cursor = el[0] ? 'pointer' : 'default'; },
+                    onClick: (e, el) => { if (el.length) showTenureDetails(chartTenureIns.data.labels[el[0].index]); }
                 }
             });
         }
 
-        // --- 新增：顯示銷售詳細名單邏輯 ---
         function showSalesDetails(clickedBatch, clickedRole, metricFilter) {
-            const sourceFilter = document.getElementById('sales-filter-source').value;
-            const roleFilter = document.getElementById('sales-filter-role').value;
-            const selectedPeriods = getSelectedPeriods('sales');
             const metricKey = metricFilter === 'ACTUAL' ? 'actual' : 'realized';
-            
-            let staffSalesMap = {}; // 用來存放每個人的業績加總
-
-            // 1. 找出該梯次、該類型(NJ/RJ) 底下，所有符合目前過濾條件的員工
-            for (const [staffId, info] of Object.entries(globalStaffMap)) {
-                if (sourceFilter !== 'ALL' && info.source !== sourceFilter) continue;
-                if (roleFilter !== 'ALL' && info.role !== roleFilter) continue;
-                
-                const batchGroup = getBatchGroup(info);
-                if (selectedPeriods.length > 0 && !selectedPeriods.includes(batchGroup)) continue;
-                
-                if (batchGroup !== clickedBatch) continue; // 必須是點擊的梯次
-                
-                const role = (info.role === 'NJ' || info.role === 'RJ') ? info.role : 'OTHER';
-                if (role !== clickedRole) continue; // 必須是點擊的類型 (NJ or RJ)
-
-                staffSalesMap[staffId] = {
-                    staffId: staffId,
-                    name: info.name || '-',
-                    batchDate: info.batchDate || '-',
-                    amount: 0,
-                    months: new Set() // 修改：新增紀錄這個人有上數的月份
-                };
+            let staffSalesMap = {};
+            for (const [sid, info] of Object.entries(globalStaffMap)) {
+                if (getBatchGroup(info) !== clickedBatch) continue;
+                if ((info.role === 'NJ' || info.role === 'RJ' ? info.role : 'OTHER') !== clickedRole) continue;
+                staffSalesMap[sid] = { sid, name: info.name, bDate: info.batchDate, amount: 0, months: new Set() };
             }
-
-            // 2. 加總這些員工在 globalSalesData 裡面的所有業績與上數月數
             globalSalesData.forEach(sale => {
                 if (staffSalesMap[sale.staffId]) {
                     staffSalesMap[sale.staffId].amount += sale[metricKey];
-                    if (sale.month) {
-                        staffSalesMap[sale.staffId].months.add(sale.month); // 紀錄月份
-                    }
+                    if (sale.month) staffSalesMap[sale.staffId].months.add(sale.month);
                 }
             });
-
-            // 3. 轉成陣列並按照業績 Amount 由高到低排序 (Top Sales 在上面)
-            let matchedStaff = Object.values(staffSalesMap);
-            matchedStaff.sort((a, b) => b.amount - a.amount);
-
-            // 4. 產生 Table HTML
+            let matched = Object.values(staffSalesMap).sort((a, b) => b.amount - a.amount);
             const tbody = document.getElementById('sales-modal-tbody');
-            tbody.innerHTML = '';
-            
-            if (matchedStaff.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-gray-500">此區間沒有找到對應的人員銷售資料。</td></tr>`;
-            } else {
-                matchedStaff.forEach(s => {
-                    const monthsCount = s.months.size;
-                    const avgAmount = monthsCount > 0 ? (s.amount / monthsCount) : 0;
-                    
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-indigo-50 transition border-b border-gray-100">
-                            <td class="px-6 py-3">${s.batchDate}</td>
-                            <td class="px-6 py-3 font-semibold text-indigo-600">${s.staffId}</td>
-                            <td class="px-6 py-3 font-medium text-gray-800">${s.name}</td>
-                            <td class="px-6 py-3 text-center text-indigo-600 font-bold">${monthsCount}</td>
-                            <td class="px-6 py-3 text-gray-600 text-right">${formatCurrency(s.amount)}</td>
-                            <td class="px-6 py-3 text-emerald-600 font-bold text-right">${formatCurrency(avgAmount)}</td>
-                        </tr>
-                    `;
-                });
-            }
-
-            // 5. 更新標題並顯示 Modal
-            const metricLabel = metricFilter === 'ACTUAL' ? 'Actual Sales' : 'Realized Sales';
-            document.getElementById('sales-modal-title').innerText = `${clickedBatch} 梯次銷售明細 (${clickedRole} 人員 - ${metricLabel})`;
+            tbody.innerHTML = matched.length ? matched.map(s => {
+                const mc = s.months.size;
+                return `
+                    <tr class="hover:bg-indigo-50 transition border-b">
+                        <td class="px-6 py-3">${s.bDate}</td>
+                        <td class="px-6 py-3 font-semibold text-indigo-600">${s.sid}</td>
+                        <td class="px-6 py-3">${s.name}</td>
+                        <td class="px-6 py-3 text-center font-bold">${mc}</td>
+                        <td class="px-6 py-3 text-right">${formatCurrency(s.amount)}</td>
+                        <td class="px-6 py-3 text-emerald-600 font-bold text-right">${formatCurrency(mc > 0 ? s.amount/mc : 0)}</td>
+                    </tr>`;
+            }).join('') : '<tr><td colspan="6" class="px-6 py-8 text-center text-gray-500">沒有資料。</td></tr>';
+            document.getElementById('sales-modal-title').innerText = `${clickedBatch} 銷售明細 (${clickedRole})`;
             document.getElementById('sales-modal').classList.remove('hidden');
         }
 
-        // 關閉銷售明細 Modal
-        function closeSalesModal() {
-            document.getElementById('sales-modal').classList.add('hidden');
-        }
+        function closeSalesModal() { document.getElementById('sales-modal').classList.add('hidden'); }
 
-        // --- 顯示在職時間詳細名單邏輯 ---
         function showTenureDetails(bucketLabel) {
-            const sourceFilter = document.getElementById('attrition-filter-source').value;
-            const roleFilter = document.getElementById('attrition-filter-role').value;
-            const selectedPeriods = getSelectedPeriods('attrition');
-
-            let matchedStaff = [];
-
-            for (const [staffId, info] of Object.entries(globalStaffMap)) {
-                // 套用當前的離職分析篩選條件
-                if (sourceFilter !== 'ALL' && info.source !== sourceFilter) continue;
-                if (roleFilter !== 'ALL' && info.role !== roleFilter) continue;
-
-                const batchGroup = getBatchGroup(info);
-                if (selectedPeriods.length > 0 && !selectedPeriods.includes(batchGroup)) continue;
-
-                // 重新計算年資，判斷是否屬於點擊的區間
-                let months = calculateTenureMonths(info.joinDate, info.lastDate);
-                if (months < 0) continue;
-
-                let matchesBucket = false;
-                if (bucketLabel === '<3個月' && months < 3) matchesBucket = true;
-                else if (bucketLabel === '3-6個月' && months >= 3 && months < 6) matchesBucket = true;
-                else if (bucketLabel === '6-12個月' && months >= 6) matchesBucket = true;
-
-                if (matchesBucket) {
-                    matchedStaff.push({
-                        batchDate: info.batchDate || '-',
-                        staffId: staffId,
-                        name: info.name || '-',
-                        dept: info.dept || '-'
-                    });
-                }
+            let matched = [];
+            for (const [sid, info] of Object.entries(globalStaffMap)) {
+                let m = calculateTenureMonths(info.joinDate, info.lastDate);
+                let match = (bucketLabel === '<3個月' && m < 3) || (bucketLabel === '3-6個月' && m >= 3 && m < 6) || (bucketLabel === '6-12個月' && m >= 6);
+                if (match) matched.push({ sid, name: info.name, bDate: info.batchDate, dept: info.dept });
             }
-
-            // 產生 Table HTML
             const tbody = document.getElementById('tenure-modal-tbody');
-            tbody.innerHTML = '';
-            
-            if (matchedStaff.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">此區間沒有符合條件的員工資料。</td></tr>`;
-            } else {
-                // 按照 Batch Date 稍微排序一下
-                matchedStaff.sort((a, b) => a.batchDate.localeCompare(b.batchDate));
-                
-                matchedStaff.forEach(s => {
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-indigo-50 transition border-b border-gray-100">
-                            <td class="px-6 py-3">${s.batchDate}</td>
-                            <td class="px-6 py-3 font-semibold text-indigo-600">${s.staffId}</td>
-                            <td class="px-6 py-3 font-medium text-gray-800">${s.name}</td>
-                            <td class="px-6 py-3 text-gray-600">${s.dept}</td>
-                        </tr>
-                    `;
-                });
-            }
-
-            // 更新標題並顯示 Modal
-            document.getElementById('tenure-modal-title').innerText = `在職時間名單：${bucketLabel} (共 ${matchedStaff.length} 人)`;
+            tbody.innerHTML = matched.sort((a,b)=>a.bDate.localeCompare(b.bDate)).map(s => `
+                <tr class="hover:bg-indigo-50 transition border-b">
+                    <td class="px-6 py-3">${s.bDate}</td>
+                    <td class="px-6 py-3 font-semibold text-indigo-600">${s.sid}</td>
+                    <td class="px-6 py-3">${s.name}</td>
+                    <td class="px-6 py-3 text-gray-600">${s.dept}</td>
+                </tr>`).join('');
+            document.getElementById('tenure-modal-title').innerText = `在職名單：${bucketLabel}`;
             document.getElementById('tenure-modal').classList.remove('hidden');
         }
 
-        // 關閉 Modal 邏輯
-        function closeTenureModal() {
-            document.getElementById('tenure-modal').classList.add('hidden');
-        }
-
-        // --- Data Fetching Operations ---
-        function parseCSVFile(file) {
-            return new Promise((resolve, reject) => {
-                Papa.parse(file, { header: false, skipEmptyLines: true, complete: res => resolve(res.data), error: err => reject(err) });
-            });
-        }
+        function closeTenureModal() { document.getElementById('tenure-modal').classList.add('hidden'); }
 
         async function processUploadedFiles() {
-            const file1 = document.getElementById('file-sheet1').files[0];
-            const file2 = document.getElementById('file-sheet2').files[0];
-            const statusDiv = document.getElementById('upload-status');
-            if (!file1 || !file2) { statusDiv.innerText = "請同時上傳 Sheet 1 和 Sheet 2 的 CSV 檔案！"; return; }
-            statusDiv.innerText = "資料處理中...";
-
+            const f1 = document.getElementById('file-sheet1').files[0], f2 = document.getElementById('file-sheet2').files[0];
+            if (!f1 || !f2) { document.getElementById('upload-status').innerText = "請上傳檔案！"; return; }
             try {
-                const data1 = await parseCSVFile(file1);
-                const data2 = await parseCSVFile(file2);
+                const d1 = await new Promise(r => Papa.parse(f1, { complete: res => r(res.data) }));
+                const d2 = await new Promise(r => Papa.parse(f2, { complete: res => r(res.data) }));
                 globalStaffMap = {}; globalSalesData = [];
-
-                for (let i = 1; i < data1.length; i++) {
-                    const row = data1[i];
-                    const staffId = row[S1_STAFF_ID] ? row[S1_STAFF_ID].toString().trim() : null;
-                    if (staffId) {
-                        globalStaffMap[staffId] = {
-                            batchDate: row[S1_BATCH_DATE] ? row[S1_BATCH_DATE].toString().trim() : '',
-                            batch: row[S1_BATCH] ? row[S1_BATCH].toString().trim() : '',
-                            name: row[S1_NAME] ? row[S1_NAME].toString().trim() : '', // 擷取 D行 Name
-                            dept: row[S1_DEPT] ? row[S1_DEPT].toString().trim() : '', // 擷取 H行 Dept
-                            source: row[S1_SOURCE] ? row[S1_SOURCE].toString().trim() : '',
-                            role: row[S1_ROLE] ? row[S1_ROLE].toString().trim().toUpperCase() : '',
-                            joinDate: row[S1_JOIN_DATE] ? row[S1_JOIN_DATE].toString().trim() : '',
-                            lastDate: row[S1_LAST_DATE] ? row[S1_LAST_DATE].toString().trim() : '',
-                            asDate: row[S1_AS_DATE] ? row[S1_AS_DATE].toString().trim() : ''
+                for (let i = 1; i < d1.length; i++) {
+                    const r = d1[i]; if (r[S1_STAFF_ID]) {
+                        globalStaffMap[r[S1_STAFF_ID].trim()] = {
+                            batchDate: r[S1_BATCH_DATE]?.trim() || '', batch: r[S1_BATCH]?.trim() || '',
+                            name: r[S1_NAME]?.trim() || '', dept: r[S1_DEPT]?.trim() || '',
+                            source: r[S1_SOURCE]?.trim() || '', role: r[S1_ROLE]?.trim().toUpperCase() || '',
+                            joinDate: r[S1_JOIN_DATE]?.trim() || '', lastDate: r[S1_LAST_DATE]?.trim() || '',
+                            asDate: r[S1_AS_DATE]?.trim() || ''
                         };
                     }
                 }
-
-                for (let i = 1; i < data2.length; i++) {
-                    const row = data2[i];
-                    const staffId = row[S2_STAFF_ID] ? row[S2_STAFF_ID].toString().trim() : null;
-                    if (staffId) {
-                        globalSalesData.push({
-                            month: row[S2_MONTH] ? row[S2_MONTH].toString().trim() : '',
-                            staffId: staffId,
-                            actual: cleanNumber(row[S2_ACTUAL]),
-                            realized: cleanNumber(row[S2_REALIZED])
-                        });
+                for (let i = 1; i < d2.length; i++) {
+                    const r = d2[i]; if (r[S2_STAFF_ID]) {
+                        globalSalesData.push({ month: r[S2_MONTH]?.trim() || '', staffId: r[S2_STAFF_ID].trim(), actual: cleanNumber(r[S2_ACTUAL]), realized: cleanNumber(r[S2_REALIZED]) });
                     }
                 }
-                statusDiv.innerHTML = `<span class="text-green-600">處理成功！已載入 ${Object.keys(globalStaffMap).length} 名員工。</span>`;
-                
-                populatePeriodFilters(); // 更新年月篩選器選項
-                
-                setTimeout(() => { switchTab('dashboard'); updateDashboard(); }, 1000);
-            } catch (err) {
-                statusDiv.innerHTML = "<span class='text-red-600'>解析檔案發生錯誤，請確定上傳的是正確的 CSV 格式。</span>"; console.error(err);
-            }
+                populatePeriodFilters(); updateDashboard(); switchTab('dashboard');
+            } catch (e) { console.error(e); }
         }
 
         async function fetchFromAPI() {
-            const apiUrl = document.getElementById('api-url').value.trim();
-            const statusDiv = document.getElementById('upload-status');
-            if (!apiUrl) { statusDiv.innerHTML = "<span class='text-red-600'>請先輸入 Apps Script 網址！</span>"; return; }
-
+            const url = document.getElementById('api-url').value;
             try {
-                statusDiv.innerHTML = "<i class='fa-solid fa-spinner fa-spin mr-2'></i>正在從 Google Sheets 獲取資料，請稍候...";
-                const response = await fetch(apiUrl);
-                if (!response.ok) throw new Error('Network response was not ok');
-                const data = await response.json();
-                if (!data.sheet1 || !data.sheet2) throw new Error('API 回傳格式不正確');
-
+                const res = await fetch(url); const d = await res.json();
                 globalStaffMap = {}; globalSalesData = [];
-
-                for (let i = 1; i < data.sheet1.length; i++) {
-                    const row = data.sheet1[i];
-                    const staffId = row[S1_STAFF_ID] ? row[S1_STAFF_ID].toString().trim() : null;
-                    if (staffId) {
-                        globalStaffMap[staffId] = {
-                            batchDate: row[S1_BATCH_DATE] ? row[S1_BATCH_DATE].toString().trim() : '',
-                            batch: row[S1_BATCH] ? row[S1_BATCH].toString().trim() : '',
-                            name: row[S1_NAME] ? row[S1_NAME].toString().trim() : '', // 擷取 D行 Name
-                            dept: row[S1_DEPT] ? row[S1_DEPT].toString().trim() : '', // 擷取 H行 Dept
-                            source: row[S1_SOURCE] ? row[S1_SOURCE].toString().trim() : '',
-                            role: row[S1_ROLE] ? row[S1_ROLE].toString().trim().toUpperCase() : '',
-                            joinDate: row[S1_JOIN_DATE] ? row[S1_JOIN_DATE].toString().trim() : '',
-                            lastDate: row[S1_LAST_DATE] ? row[S1_LAST_DATE].toString().trim() : '',
-                            asDate: row[S1_AS_DATE] ? row[S1_AS_DATE].toString().trim() : ''
-                        };
-                    }
-                }
-
-                for (let i = 1; i < data.sheet2.length; i++) {
-                    const row = data.sheet2[i];
-                    const staffId = row[S2_STAFF_ID] ? row[S2_STAFF_ID].toString().trim() : null;
-                    if (staffId) {
-                        globalSalesData.push({
-                            month: row[S2_MONTH] ? row[S2_MONTH].toString().trim() : '',
-                            staffId: staffId,
-                            actual: cleanNumber(row[S2_ACTUAL]),
-                            realized: cleanNumber(row[S2_REALIZED])
-                        });
-                    }
-                }
-                statusDiv.innerHTML = `<span class="text-green-600 font-bold"><i class="fa-solid fa-check mr-1"></i>API 同步成功！載入了 ${Object.keys(globalStaffMap).length} 名員工。</span>`;
-                
-                populatePeriodFilters(); // 更新年月篩選器選項
-                
-                setTimeout(() => { 
-                    switchTab('dashboard'); 
-                    // Reset all filters on new data load
-                    document.getElementById('sales-filter-source').value = 'ALL'; 
-                    document.getElementById('sales-filter-role').value = 'ALL'; 
-                    document.getElementById('attrition-filter-source').value = 'ALL'; 
-                    document.getElementById('attrition-filter-role').value = 'ALL'; 
-                    updateDashboard(); 
-                }, 1000);
-            } catch (err) {
-                statusDiv.innerHTML = "<span class='text-red-600'>無法獲取 API 資料，請檢查網址與權限。</span>"; console.error(err);
-            }
+                d.sheet1.slice(1).forEach(r => {
+                    if (r[S1_STAFF_ID]) globalStaffMap[r[S1_STAFF_ID].trim()] = {
+                        batchDate: r[S1_BATCH_DATE]?.trim(), batch: r[S1_BATCH]?.trim(), name: r[S1_NAME]?.trim(),
+                        dept: r[S1_DEPT]?.trim(), source: r[S1_SOURCE]?.trim(), role: r[S1_ROLE]?.trim().toUpperCase(),
+                        joinDate: r[S1_JOIN_DATE]?.trim(), lastDate: r[S1_LAST_DATE]?.trim(), asDate: r[S1_AS_DATE]?.trim()
+                    };
+                });
+                d.sheet2.slice(1).forEach(r => {
+                    if (r[S2_STAFF_ID]) globalSalesData.push({ month: r[S2_MONTH]?.trim(), staffId: r[S2_STAFF_ID].trim(), actual: cleanNumber(r[S2_ACTUAL]), realized: cleanNumber(r[S2_REALIZED]) });
+                });
+                populatePeriodFilters(); updateDashboard(); switchTab('dashboard');
+            } catch (e) { console.error(e); }
         }
 
         function loadMockData() {
             globalStaffMap = {
-                // 示範: 加入 Name 和 Dept
-                'S011': { asDate: '10-2025', batchDate: '2025-10-01', name: '陳大文', dept: 'Team Alpha', batch: '10A', source: 'HR', role: 'NJ', joinDate: '2025-10-01', lastDate: '' },
-                'S012': { asDate: '11-2025', batchDate: '2025-11-15', name: '李小玲', dept: 'Team Beta', batch: '11B', source: 'Ops', role: 'RJ', joinDate: '2025-11-15', lastDate: '' }, 
-                'S014': { asDate: '11-2025', batchDate: '2025-11-20', name: '張偉強', dept: 'Team Alpha', batch: '11C', source: 'HR', role: 'NJ', joinDate: '2025-11-20', lastDate: '2026-03-01' }, 
-                'S013': { asDate: '12-2025', batchDate: '2025-12-05', name: '黃志明', dept: 'Team Gamma', batch: '12C', source: 'HR', role: 'NJ', joinDate: '2025-12-05', lastDate: '' },
-                
-                'S001': { asDate: '1-2026', batchDate: '2026-01-01', name: '林嘉欣', dept: 'Team Alpha', batch: '1A', source: 'HR', role: 'NJ', joinDate: '2026-01-01', lastDate: '-' }, 
-                'S002': { asDate: '2-2026', batchDate: '2026-02-15', name: '王志豪', dept: 'Team Beta', batch: '2A', source: 'Ops', role: 'RJ', joinDate: '2026-02-15', lastDate: '2026-03-01' }, 
-                'S003': { asDate: '3-2026', batchDate: '2026-03-20', name: '何美怡', dept: 'Team Gamma', batch: '3A', source: 'HR', role: 'NJ', joinDate: '2026-03-20', lastDate: '2026-06-01' }, 
-                'S004': { asDate: '4-2026', batchDate: '2026-04-01', name: '鄭國強', dept: 'Team Alpha', batch: '4A', source: 'HR', role: 'RJ', joinDate: '2026-04-01', lastDate: '' }
+                'S011': { asDate: '10-2025', batchDate: '2025-10-01', name: '陳大文', dept: 'Alpha', batch: '10A', source: 'HR', role: 'NJ', joinDate: '2025-10-01', lastDate: '' },
+                'S012': { asDate: '11-2025', batchDate: '2025-11-15', name: '李小玲', dept: 'Beta', batch: '11B', source: 'Ops', role: 'RJ', joinDate: '2025-11-15', lastDate: '' },
+                'S001': { asDate: '1-2026', batchDate: '2026-01-01', name: '林嘉欣', dept: 'Alpha', batch: '1A', source: 'HR', role: 'NJ', joinDate: '2026-01-01', lastDate: '' }
             };
-
-            globalSalesData = [
-                // 2025 年的業績
-                { month: '2025-10', staffId: 'S011', actual: 50000, realized: 45000 },
-                { month: '2025-11', staffId: 'S011', actual: 80000, realized: 75000 },
-                { month: '2025-11', staffId: 'S012', actual: 60000, realized: 50000 },
-                { month: '2025-11', staffId: 'S014', actual: 40000, realized: 30000 },
-                { month: '2025-12', staffId: 'S013', actual: 90000, realized: 85000 },
-                
-                // 2026 年的業績
-                { month: '2026-01', staffId: 'S001', actual: 150000, realized: 135000 },
-                { month: '2026-02', staffId: 'S002', actual: 120000, realized: 110000 },
-                { month: '2026-03', staffId: 'S003', actual: 180000, realized: 160000 },
-                { month: '2026-04', staffId: 'S004', actual: 200000, realized: 180000 }
-            ];
-
-            const statusDiv = document.getElementById('upload-status');
-            statusDiv.innerHTML = `<span class="text-green-600">已成功載入模擬數據！</span>`;
-            
-            populatePeriodFilters(); // 更新年月篩選器選項
-            
-            setTimeout(() => { 
-                switchTab('dashboard'); 
-                document.getElementById('sales-filter-source').value = 'ALL'; 
-                document.getElementById('sales-filter-role').value = 'ALL'; 
-                document.getElementById('attrition-filter-source').value = 'ALL'; 
-                document.getElementById('attrition-filter-role').value = 'ALL'; 
-                updateDashboard(); 
-                statusDiv.innerHTML = ''; 
-            }, 800);
-        }
-
-        window.onload = function() {
-            const defaultApiUrl = document.getElementById('api-url').value;
-            if (defaultApiUrl && defaultApiUrl.trim() !== '') {
-                fetchFromAPI();
-            } else {
-                loadMockData(); 
-            }
+            globalSalesData = [{ month: '2025-11', staffId: 'S011', actual: 50000, realized: 40000 }, { month: '2026-01', staffId: 'S001', actual: 120000, realized: 100000 }];
+            populatePeriodFilters(); updateDashboard();
         }
     </script>
 </body>
