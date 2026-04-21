@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>銷售與招募績效分析平台</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- PapaParse for CSV parsing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#4F46E5',
+                        secondary: '#10B981',
+                        dark: '#1E293B'
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f8fafc; }
+        .glass-card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); padding: 24px; }
+        .hide { display: none; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased">
+
+    <!-- Navigation -->
+    <nav class="bg-indigo-600 text-white shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fa-solid fa-chart-line text-2xl mr-3"></i>
+                    <span class="font-bold text-xl tracking-wider">招募與績效分析平台</span>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <button onclick="switchTab('dashboard')" id="btn-dashboard" class="px-3 py-2 rounded-md text-sm font-medium bg-indigo-700 hover:bg-indigo-500 transition">儀表板</button>
+                    <button onclick="switchTab('data-source')" id="btn-data" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-500 transition">資料來源設定</button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- Tab: Data Source -->
+        <div id="tab-data-source" class="hide">
+            <div class="glass-card max-w-3xl mx-auto">
+                <h2 class="text-2xl font-bold mb-6 text-indigo-900 border-b pb-2"><i class="fa-solid fa-database mr-2"></i>資料匯入設定</h2>
+                
+                <div class="bg-blue-50 text-blue-800 p-4 rounded-lg mb-6 text-sm">
+                    <p class="font-bold mb-1"><i class="fa-solid fa-circle-info mr-2"></i>使用說明：</p>
+                    <p>請選擇以下任一方式載入您的招募與銷售資料：</p>
+                </div>
+
+                <!-- API Section -->
+                <div class="mb-8 p-6 bg-indigo-50 rounded-lg border border-indigo-100">
+                    <h3 class="font-bold text-lg mb-2 text-indigo-900"><i class="fa-solid fa-link mr-2"></i>方式一：透過 Apps Script API 自動同步 (推薦)</h3>
+                    <p class="text-xs text-gray-600 mb-4">將您部署好的 Apps Script Web App 網址貼在下方，即可一鍵拉取最新資料。</p>
+                    <div class="flex flex-col sm:flex-row gap-3">
+                        <input type="text" id="api-url" value="https://script.google.com/macros/s/AKfycbzzmDBB0v7ovUbO3oi2NGAAPLUL3zqOcUTlATlCAWXbmrWWCpxNqB0jDfpMAUcTw2_dQA/exec" placeholder="https://script.google.com/macros/s/..../exec" class="flex-1 p-3 rounded border border-gray-300 focus:ring-indigo-500 focus:border-indigo-500 outline-none text-sm">
+                        <button onclick="fetchFromAPI()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded shadow transition">
+                            <i class="fa-solid fa-cloud-arrow-down mr-2"></i>載入 API 資料
+                        </button>
+                    </div>
+                </div>
+
+                <h3 class="font-bold text-lg mb-4 text-gray-700"><i class="fa-solid fa-file-csv mr-2"></i>方式二：手動上傳 CSV 檔案</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                    <!-- Sheet 1 Upload -->
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition bg-gray-50">
+                        <i class="fa-solid fa-users text-3xl text-gray-400 mb-3"></i>
+                        <h3 class="font-bold text-lg mb-2">上傳 Sheet 1 (新人資料)</h3>
+                        <p class="text-xs text-gray-500 mb-4">包含 Batch(B), ID(C), HR/Ops(L), RJ/NJ(Q), Join Date(T), Last Date(AP)</p>
+                        <input type="file" id="file-sheet1" accept=".csv" class="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+                    </div>
+
+                    <!-- Sheet 2 Upload -->
+                    <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition bg-gray-50">
+                        <i class="fa-solid fa-file-invoice-dollar text-3xl text-gray-400 mb-3"></i>
+                        <h3 class="font-bold text-lg mb-2">上傳 Sheet 2 (銷售表現)</h3>
+                        <p class="text-xs text-gray-500 mb-4">包含 Month(B), Staff ID(I), Actual Sales(N), Realized Sales(R)</p>
+                        <input type="file" id="file-sheet2" accept=".csv" class="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+                    </div>
+                </div>
+
+                <div class="flex justify-center space-x-4">
+                    <button onclick="processUploadedFiles()" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-3 px-6 rounded-lg shadow-md transition transform hover:-translate-y-0.5">
+                        <i class="fa-solid fa-upload mr-2"></i>處理上傳的 CSV
+                    </button>
+                    <button onclick="loadMockData()" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold py-3 px-6 rounded-lg shadow-md transition transform hover:-translate-y-0.5">
+                        <i class="fa-solid fa-wand-magic-sparkles mr-2"></i>載入系統模擬數據
+                    </button>
+                </div>
+                <div id="upload-status" class="mt-4 text-center text-sm font-semibold text-red-600"></div>
+            </div>
+        </div>
+
+        <!-- Tab: Dashboard -->
+        <div id="tab-dashboard">
+            
+            <!-- 頂部狀態列 -->
+            <div class="flex justify-end mb-2">
+                <div class="text-sm text-gray-500 whitespace-nowrap" id="data-status">
+                    尚未載入資料，請前往「資料來源設定」。
+                </div>
+            </div>
+
+            <!-- ===== 區塊 1: 銷售與招募總覽 ===== -->
+            <h2 class="text-xl font-bold text-indigo-900 mb-4 border-b-2 border-indigo-100 pb-2"><i class="fa-solid fa-money-bill-trend-up mr-2"></i>銷售與招募總覽</h2>
+            
+            <!-- 銷售專屬 Filter -->
+            <div class="glass-card mb-6 flex flex-col lg:flex-row items-center justify-between border-l-4 border-indigo-500">
+                <div class="flex flex-col lg:flex-row items-start lg:items-center space-y-4 lg:space-y-0 lg:space-x-4 w-full">
+                    <div class="flex items-center space-x-2">
+                        <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-filter mr-2"></i>招募來源：</label>
+                        <select id="sales-filter-source" onchange="updateSalesData()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none">
+                            <option value="ALL">全部 (All)</option>
+                            <option value="HR">HR</option>
+                            <option value="Ops">Ops</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-user-tag mr-2"></i>人員類型：</label>
+                        <select id="sales-filter-role" onchange="updateSalesData()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none">
+                            <option value="ALL">全部 (All)</option>
+                            <option value="NJ">NJ</option>
+                            <option value="RJ">RJ</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-chart-pie mr-2"></i>分析指標：</label>
+                        <select id="sales-filter-metric" onchange="updateSalesData()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 block p-2 outline-none">
+                            <option value="ACTUAL">分析 Actual Sales</option>
+                            <option value="REALIZED">分析 Realized Sales</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 銷售 KPI Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="glass-card">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-blue-100 text-blue-600 mr-4">
+                            <i class="fa-solid fa-users text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium mb-1">符合條件人數 (Headcount)</p>
+                            <p class="text-3xl font-bold text-gray-800" id="kpi-headcount">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-card">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-indigo-100 text-indigo-600 mr-4">
+                            <i class="fa-solid fa-hand-holding-dollar text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium mb-1">總實際銷售 (Actual Sales - NJ)</p>
+                            <p class="text-3xl font-bold text-gray-800" id="kpi-actual">HK$ 0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-card">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-emerald-100 text-emerald-600 mr-4">
+                            <i class="fa-solid fa-sack-dollar text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium mb-1">總已實現銷售 (Realized Sales - RJ)</p>
+                            <p class="text-3xl font-bold text-gray-800" id="kpi-realized">HK$ 0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section (Sales) -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+                <div class="glass-card">
+                    <h3 id="title-chart-sales" class="text-lg font-bold text-gray-800 mb-4 text-center">各梯次總銷售表現 (NJ vs RJ)</h3>
+                    <div class="relative h-72">
+                        <canvas id="chart-sales"></canvas>
+                    </div>
+                </div>
+                
+                <div class="glass-card">
+                    <h3 id="title-chart-avg-sales" class="text-lg font-bold text-gray-800 mb-4 text-center">各梯次人均銷售表現 (Average Sales per Head)</h3>
+                    <div class="relative h-72">
+                        <canvas id="chart-avg-sales"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ===== 區塊 2: 員工留任與離職分析 ===== -->
+            <h2 class="text-xl font-bold text-rose-800 mb-4 border-b-2 border-rose-100 pb-2 mt-8"><i class="fa-solid fa-door-open mr-2"></i>員工留任與離職分析</h2>
+            
+            <!-- 離職專屬 Filter -->
+            <div class="glass-card mb-6 flex flex-col lg:flex-row items-center justify-between border-l-4 border-rose-400">
+                <div class="flex flex-col lg:flex-row items-start lg:items-center space-y-4 lg:space-y-0 lg:space-x-4 w-full">
+                    <div class="flex items-center space-x-2">
+                        <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-filter mr-2"></i>招募來源 (留任)：</label>
+                        <select id="attrition-filter-source" onchange="updateAttritionData()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-rose-500 focus:border-rose-500 block p-2 outline-none">
+                            <option value="ALL">全部 (All)</option>
+                            <option value="HR">HR</option>
+                            <option value="Ops">Ops</option>
+                        </select>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-user-tag mr-2"></i>人員類型 (留任)：</label>
+                        <select id="attrition-filter-role" onchange="updateAttritionData()" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-rose-500 focus:border-rose-500 block p-2 outline-none">
+                            <option value="ALL">全部 (All)</option>
+                            <option value="NJ">NJ</option>
+                            <option value="RJ">RJ</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attrition KPI Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="glass-card">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-emerald-100 text-emerald-600 mr-4">
+                            <i class="fa-solid fa-user-check text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium mb-1">目前在職人數 (Active Staff)</p>
+                            <p class="text-3xl font-bold text-gray-800" id="kpi-active">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-card">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-rose-100 text-rose-600 mr-4">
+                            <i class="fa-solid fa-user-minus text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium mb-1">總離職人數 (Resigned)</p>
+                            <p class="text-3xl font-bold text-gray-800" id="kpi-resigned">0</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="glass-card">
+                    <div class="flex items-center">
+                        <div class="p-3 rounded-full bg-amber-100 text-amber-600 mr-4">
+                            <i class="fa-solid fa-percent text-xl"></i>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-500 font-medium mb-1">整體留任率 (Retention Rate)</p>
+                            <p class="text-3xl font-bold text-gray-800" id="kpi-retention-rate">0%</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attrition Charts -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="glass-card">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">各梯次留任與離職狀況 (Retention by Batch)</h3>
+                    <div class="relative h-72">
+                        <canvas id="chart-retention"></canvas>
+                    </div>
+                </div>
+                <div class="glass-card">
+                    <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">在職時間分佈 (Tenure Distribution)</h3>
+                    <div class="relative h-72">
+                        <canvas id="chart-tenure"></canvas>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Application Logic -->
+    <script>
+        // --- Constants (Column Indices 0-based) ---
+        // Sheet 1: B(1)=BATCH, C(2)=STAFF ID, L(11)=HR/Ops, Q(16)=RJ/NJ, T(19)=Join Date, AP(41)=Last Date
+        const S1_BATCH = 1;
+        const S1_STAFF_ID = 2;
+        const S1_SOURCE = 11;
+        const S1_ROLE = 16;
+        const S1_JOIN_DATE = 19;
+        const S1_LAST_DATE = 41;
+
+        // Sheet 2: B(1)=Month, I(8)=STAFF ID, N(13)=ACTUAL SALES(NJ), R(17)=REALIZED SALES(RJ)
+        const S2_MONTH = 1;
+        const S2_STAFF_ID = 8;
+        const S2_ACTUAL = 13;
+        const S2_REALIZED = 17;
+
+        // Global Data Store
+        let globalStaffMap = {}; // { staffId: { batch, source, role, joinDate, lastDate } }
+        let globalSalesData = []; // [ { month, staffId, actual, realized } ]
+        
+        // Chart Instances
+        let chartSalesIns = null;
+        let chartAvgSalesIns = null;
+        let chartRetentionIns = null;
+        let chartTenureIns = null;
+
+        // --- UI Logic ---
+        function switchTab(tabId) {
+            document.getElementById('tab-dashboard').classList.add('hide');
+            document.getElementById('tab-data-source').classList.add('hide');
+            
+            document.getElementById('btn-dashboard').classList.remove('bg-indigo-700');
+            document.getElementById('btn-data').classList.remove('bg-indigo-700');
+
+            if(tabId === 'dashboard') {
+                document.getElementById('tab-dashboard').classList.remove('hide');
+                document.getElementById('btn-dashboard').classList.add('bg-indigo-700');
+            } else {
+                document.getElementById('tab-data-source').classList.remove('hide');
+                document.getElementById('btn-data').classList.add('bg-indigo-700');
+            }
+        }
+
+        // --- Data Processing Helpers ---
+        function formatCurrency(num) {
+            return 'HK$ ' + num.toLocaleString('en-US', { maximumFractionDigits: 0 });
+        }
+
+        function cleanNumber(val) {
+            if (!val) return 0;
+            if (typeof val === 'number') return val;
+            const cleaned = val.toString().replace(/[^0-9.-]+/g,"");
+            return parseFloat(cleaned) || 0;
+        }
+
+        function getBatchGroup(rawBatch) {
+            if (!rawBatch) return 'Unknown';
+            const str = rawBatch.toString().trim();
+            const match = str.match(/^(\d+)/);
+            if (match) {
+                return match[1] + '月';
+            }
+            return str;
+        }
+
+        function getSortedBatches(statsObj) {
+            return Object.keys(statsObj).sort((a, b) => {
+                const numA = parseInt(a.replace('月', ''));
+                const numB = parseInt(b.replace('月', ''));
+                if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                return a.localeCompare(b);
+            });
+        }
+
+        function calculateTenureMonths(joinDateStr, lastDateStr) {
+            if (!joinDateStr) return -1;
+            const start = new Date(joinDateStr);
+            if (isNaN(start.getTime())) return -1;
+
+            let end;
+            if (lastDateStr && lastDateStr.trim() !== '') {
+                end = new Date(lastDateStr);
+                if (isNaN(end.getTime())) end = new Date(); // Invalid format fallback
+            } else {
+                end = new Date(); // Still active
+            }
+
+            const diffTime = Math.abs(end - start);
+            return diffTime / (1000 * 60 * 60 * 24 * 30.44); // Approx months
+        }
+
+        // --- Main Update Trigger ---
+        function updateDashboard() {
+            if(Object.keys(globalStaffMap).length === 0) return;
+            
+            updateSalesData();
+            updateAttritionData();
+            
+            const totalStaff = Object.keys(globalStaffMap).length;
+            document.getElementById('data-status').innerHTML = `<span class="text-green-600 font-bold"><i class="fa-solid fa-check-circle mr-1"></i>系統共載入 ${totalStaff} 筆人員資料</span>`;
+        }
+
+        // --- 1. Update Sales Section ---
+        function updateSalesData() {
+            const sourceFilter = document.getElementById('sales-filter-source').value;
+            const roleFilter = document.getElementById('sales-filter-role').value;
+            const metricFilter = document.getElementById('sales-filter-metric').value;
+
+            let filteredStaffIds = new Set();
+            let statsByBatch = {}; 
+            let totalHeadcount = 0;
+
+            // Filter Staff for Sales
+            for (const [staffId, info] of Object.entries(globalStaffMap)) {
+                if (sourceFilter !== 'ALL' && info.source !== sourceFilter) continue;
+                if (roleFilter !== 'ALL' && info.role !== roleFilter) continue;
+                
+                filteredStaffIds.add(staffId);
+                
+                const batchGroup = getBatchGroup(info.batch);
+                const role = (info.role === 'NJ' || info.role === 'RJ') ? info.role : 'OTHER';
+                
+                if (!statsByBatch[batchGroup]) {
+                    statsByBatch[batchGroup] = { NJ: { hc: 0, actual: 0, realized: 0 }, RJ: { hc: 0, actual: 0, realized: 0 } };
+                }
+                
+                if (role === 'NJ' || role === 'RJ') {
+                    statsByBatch[batchGroup][role].hc += 1;
+                }
+                totalHeadcount += 1;
+            }
+
+            // Calculate Sales for Filtered Staff
+            let totalActual = 0;
+            let totalRealized = 0;
+
+            globalSalesData.forEach(sale => {
+                if (filteredStaffIds.has(sale.staffId)) {
+                    const info = globalStaffMap[sale.staffId];
+                    const batchGroup = getBatchGroup(info.batch);
+                    const role = (info.role === 'NJ' || info.role === 'RJ') ? info.role : 'OTHER';
+                    
+                    totalActual += sale.actual;
+                    totalRealized += sale.realized;
+
+                    if (statsByBatch[batchGroup] && (role === 'NJ' || role === 'RJ')) {
+                        statsByBatch[batchGroup][role].actual += sale.actual;
+                        statsByBatch[batchGroup][role].realized += sale.realized;
+                    }
+                }
+            });
+
+            // Update Sales KPIs
+            document.getElementById('kpi-headcount').innerText = totalHeadcount;
+            document.getElementById('kpi-actual').innerText = formatCurrency(totalActual);
+            document.getElementById('kpi-realized').innerText = formatCurrency(totalRealized);
+
+            renderSalesCharts(statsByBatch, metricFilter);
+        }
+
+        // --- 2. Update Attrition Section ---
+        function updateAttritionData() {
+            const sourceFilter = document.getElementById('attrition-filter-source').value;
+            const roleFilter = document.getElementById('attrition-filter-role').value;
+
+            let statsByBatch = {}; 
+            let totalHeadcount = 0;
+            let totalResigned = 0;
+            let totalActive = 0;
+            let tenureBuckets = { '<3個月': 0, '3-6個月': 0, '6-12個月': 0, '1年以上': 0 };
+
+            // Filter Staff for Attrition
+            for (const [staffId, info] of Object.entries(globalStaffMap)) {
+                if (sourceFilter !== 'ALL' && info.source !== sourceFilter) continue;
+                if (roleFilter !== 'ALL' && info.role !== roleFilter) continue;
+                
+                const batchGroup = getBatchGroup(info.batch);
+                
+                if (!statsByBatch[batchGroup]) {
+                    statsByBatch[batchGroup] = { ACTIVE: 0, RESIGNED: 0 };
+                }
+                
+                totalHeadcount += 1;
+
+                const isResigned = info.lastDate && info.lastDate.trim() !== '';
+                if (isResigned) {
+                    statsByBatch[batchGroup].RESIGNED += 1;
+                    totalResigned += 1;
+                } else {
+                    statsByBatch[batchGroup].ACTIVE += 1;
+                    totalActive += 1;
+                }
+
+                let months = calculateTenureMonths(info.joinDate, info.lastDate);
+                if (months >= 0) {
+                    if (months < 3) tenureBuckets['<3個月']++;
+                    else if (months < 6) tenureBuckets['3-6個月']++;
+                    else if (months < 12) tenureBuckets['6-12個月']++;
+                    else tenureBuckets['1年以上']++;
+                }
+            }
+
+            // Update Attrition KPIs
+            document.getElementById('kpi-active').innerText = totalActive;
+            document.getElementById('kpi-resigned').innerText = totalResigned;
+            let retentionRate = totalHeadcount > 0 ? ((totalActive / totalHeadcount) * 100).toFixed(1) : 0;
+            document.getElementById('kpi-retention-rate').innerText = retentionRate + '%';
+
+            renderAttritionCharts(statsByBatch, tenureBuckets);
+        }
+
+        // --- Render Functions ---
+        function renderSalesCharts(statsByBatch, metricFilter) {
+            const batches = getSortedBatches(statsByBatch);
+            const metricKey = metricFilter === 'ACTUAL' ? 'actual' : 'realized';
+            const metricLabel = metricFilter === 'ACTUAL' ? 'Actual Sales' : 'Realized Sales';
+
+            document.getElementById('title-chart-sales').innerText = `各梯次總銷售表現 (${metricLabel} - NJ vs RJ)`;
+            document.getElementById('title-chart-avg-sales').innerText = `各梯次人均銷售表現 (Average ${metricLabel} - NJ vs RJ)`;
+
+            if (chartSalesIns) chartSalesIns.destroy();
+            if (chartAvgSalesIns) chartAvgSalesIns.destroy();
+
+            // Chart 1: Total Sales
+            const ctxSales = document.getElementById('chart-sales').getContext('2d');
+            chartSalesIns = new Chart(ctxSales, {
+                type: 'bar',
+                data: {
+                    labels: batches,
+                    datasets: [
+                        { label: `總 ${metricLabel} (NJ人員)`, data: batches.map(b => statsByBatch[b].NJ[metricKey]), backgroundColor: 'rgba(59, 130, 246, 0.7)', borderWidth: 1 },
+                        { label: `總 ${metricLabel} (RJ人員)`, data: batches.map(b => statsByBatch[b].RJ[metricKey]), backgroundColor: 'rgba(16, 185, 129, 0.7)', borderWidth: 1 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { beginAtZero: true, ticks: { callback: v => 'HK$ ' + (v / 1000) + 'k' } } } }
+            });
+
+            // Chart 2: Average Sales
+            const ctxAvgSales = document.getElementById('chart-avg-sales').getContext('2d');
+            chartAvgSalesIns = new Chart(ctxAvgSales, {
+                type: 'bar',
+                data: {
+                    labels: batches,
+                    datasets: [
+                        { label: `人均 ${metricLabel} (NJ人員)`, data: batches.map(b => statsByBatch[b].NJ.hc > 0 ? (statsByBatch[b].NJ[metricKey] / statsByBatch[b].NJ.hc) : 0), backgroundColor: 'rgba(255, 99, 132, 0.7)', borderWidth: 1 },
+                        { label: `人均 ${metricLabel} (RJ人員)`, data: batches.map(b => statsByBatch[b].RJ.hc > 0 ? (statsByBatch[b].RJ[metricKey] / statsByBatch[b].RJ.hc) : 0), backgroundColor: 'rgba(255, 159, 64, 0.7)', borderWidth: 1 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { beginAtZero: true, ticks: { callback: v => 'HK$ ' + (v / 1000) + 'k' } } } }
+            });
+        }
+
+        function renderAttritionCharts(statsByBatch, tenureBuckets) {
+            const batches = getSortedBatches(statsByBatch);
+
+            if (chartRetentionIns) chartRetentionIns.destroy();
+            if (chartTenureIns) chartTenureIns.destroy();
+
+            // Chart 3: Retention by Batch
+            const ctxRetention = document.getElementById('chart-retention').getContext('2d');
+            chartRetentionIns = new Chart(ctxRetention, {
+                type: 'bar',
+                data: {
+                    labels: batches,
+                    datasets: [
+                        { label: '在職 (Active)', data: batches.map(b => statsByBatch[b].ACTIVE), backgroundColor: 'rgba(52, 211, 153, 0.8)', borderWidth: 1 },
+                        { label: '已離職 (Resigned)', data: batches.map(b => statsByBatch[b].RESIGNED), backgroundColor: 'rgba(244, 63, 94, 0.8)', borderWidth: 1 }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } } }
+                }
+            });
+
+            // Chart 4: Tenure Distribution
+            const ctxTenure = document.getElementById('chart-tenure').getContext('2d');
+            chartTenureIns = new Chart(ctxTenure, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(tenureBuckets),
+                    datasets: [{
+                        data: Object.values(tenureBuckets),
+                        backgroundColor: [
+                            'rgba(248, 113, 113, 0.8)', // Red (<3m)
+                            'rgba(251, 191, 36, 0.8)',  // Yellow (3-6m)
+                            'rgba(96, 165, 250, 0.8)',  // Blue (6-12m)
+                            'rgba(52, 211, 153, 0.8)'   // Green (>1y)
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { position: 'right' } }
+                }
+            });
+        }
+
+        // --- Data Fetching Operations ---
+        function parseCSVFile(file) {
+            return new Promise((resolve, reject) => {
+                Papa.parse(file, { header: false, skipEmptyLines: true, complete: res => resolve(res.data), error: err => reject(err) });
+            });
+        }
+
+        async function processUploadedFiles() {
+            const file1 = document.getElementById('file-sheet1').files[0];
+            const file2 = document.getElementById('file-sheet2').files[0];
+            const statusDiv = document.getElementById('upload-status');
+            if (!file1 || !file2) { statusDiv.innerText = "請同時上傳 Sheet 1 和 Sheet 2 的 CSV 檔案！"; return; }
+            statusDiv.innerText = "資料處理中...";
+
+            try {
+                const data1 = await parseCSVFile(file1);
+                const data2 = await parseCSVFile(file2);
+                globalStaffMap = {}; globalSalesData = [];
+
+                for (let i = 1; i < data1.length; i++) {
+                    const row = data1[i];
+                    const staffId = row[S1_STAFF_ID] ? row[S1_STAFF_ID].toString().trim() : null;
+                    if (staffId) {
+                        globalStaffMap[staffId] = {
+                            batch: row[S1_BATCH] ? row[S1_BATCH].toString().trim() : '',
+                            source: row[S1_SOURCE] ? row[S1_SOURCE].toString().trim() : '',
+                            role: row[S1_ROLE] ? row[S1_ROLE].toString().trim().toUpperCase() : '',
+                            joinDate: row[S1_JOIN_DATE] ? row[S1_JOIN_DATE].toString().trim() : '',
+                            lastDate: row[S1_LAST_DATE] ? row[S1_LAST_DATE].toString().trim() : ''
+                        };
+                    }
+                }
+
+                for (let i = 1; i < data2.length; i++) {
+                    const row = data2[i];
+                    const staffId = row[S2_STAFF_ID] ? row[S2_STAFF_ID].toString().trim() : null;
+                    if (staffId) {
+                        globalSalesData.push({
+                            month: row[S2_MONTH] ? row[S2_MONTH].toString().trim() : '',
+                            staffId: staffId,
+                            actual: cleanNumber(row[S2_ACTUAL]),
+                            realized: cleanNumber(row[S2_REALIZED])
+                        });
+                    }
+                }
+                statusDiv.innerHTML = `<span class="text-green-600">處理成功！已載入 ${Object.keys(globalStaffMap).length} 名員工。</span>`;
+                setTimeout(() => { switchTab('dashboard'); updateDashboard(); }, 1000);
+            } catch (err) {
+                statusDiv.innerHTML = "<span class='text-red-600'>解析檔案發生錯誤，請確定上傳的是正確的 CSV 格式。</span>"; console.error(err);
+            }
+        }
+
+        async function fetchFromAPI() {
+            const apiUrl = document.getElementById('api-url').value.trim();
+            const statusDiv = document.getElementById('upload-status');
+            if (!apiUrl) { statusDiv.innerHTML = "<span class='text-red-600'>請先輸入 Apps Script 網址！</span>"; return; }
+
+            try {
+                statusDiv.innerHTML = "<i class='fa-solid fa-spinner fa-spin mr-2'></i>正在從 Google Sheets 獲取資料，請稍候...";
+                const response = await fetch(apiUrl);
+                if (!response.ok) throw new Error('Network response was not ok');
+                const data = await response.json();
+                if (!data.sheet1 || !data.sheet2) throw new Error('API 回傳格式不正確');
+
+                globalStaffMap = {}; globalSalesData = [];
+
+                for (let i = 1; i < data.sheet1.length; i++) {
+                    const row = data.sheet1[i];
+                    const staffId = row[S1_STAFF_ID] ? row[S1_STAFF_ID].toString().trim() : null;
+                    if (staffId) {
+                        globalStaffMap[staffId] = {
+                            batch: row[S1_BATCH] ? row[S1_BATCH].toString().trim() : '',
+                            source: row[S1_SOURCE] ? row[S1_SOURCE].toString().trim() : '',
+                            role: row[S1_ROLE] ? row[S1_ROLE].toString().trim().toUpperCase() : '',
+                            joinDate: row[S1_JOIN_DATE] ? row[S1_JOIN_DATE].toString().trim() : '',
+                            lastDate: row[S1_LAST_DATE] ? row[S1_LAST_DATE].toString().trim() : ''
+                        };
+                    }
+                }
+
+                for (let i = 1; i < data.sheet2.length; i++) {
+                    const row = data.sheet2[i];
+                    const staffId = row[S2_STAFF_ID] ? row[S2_STAFF_ID].toString().trim() : null;
+                    if (staffId) {
+                        globalSalesData.push({
+                            month: row[S2_MONTH] ? row[S2_MONTH].toString().trim() : '',
+                            staffId: staffId,
+                            actual: cleanNumber(row[S2_ACTUAL]),
+                            realized: cleanNumber(row[S2_REALIZED])
+                        });
+                    }
+                }
+                statusDiv.innerHTML = `<span class="text-green-600 font-bold"><i class="fa-solid fa-check mr-1"></i>API 同步成功！載入了 ${Object.keys(globalStaffMap).length} 名員工。</span>`;
+                setTimeout(() => { 
+                    switchTab('dashboard'); 
+                    // Reset all filters on new data load
+                    document.getElementById('sales-filter-source').value = 'ALL'; 
+                    document.getElementById('sales-filter-role').value = 'ALL'; 
+                    document.getElementById('attrition-filter-source').value = 'ALL'; 
+                    document.getElementById('attrition-filter-role').value = 'ALL'; 
+                    updateDashboard(); 
+                }, 1000);
+            } catch (err) {
+                statusDiv.innerHTML = "<span class='text-red-600'>無法獲取 API 資料，請檢查網址與權限。</span>"; console.error(err);
+            }
+        }
+
+        function loadMockData() {
+            globalStaffMap = {
+                'S001': { batch: '1A', source: 'HR', role: 'NJ', joinDate: '2023-01-01', lastDate: '' },
+                'S002': { batch: '1B', source: 'Ops', role: 'RJ', joinDate: '2023-01-15', lastDate: '2023-03-01' }, 
+                'S003': { batch: '1C', source: 'HR', role: 'NJ', joinDate: '2023-01-20', lastDate: '2023-06-01' }, 
+                'S004': { batch: '2A', source: 'HR', role: 'RJ', joinDate: '2023-02-01', lastDate: '' }, 
+                'S005': { batch: '2B', source: 'Ops', role: 'NJ', joinDate: '2023-02-10', lastDate: '' }, 
+                'S006': { batch: '2C', source: 'Ops', role: 'NJ', joinDate: '2023-02-15', lastDate: '2023-05-01' }, 
+                'S007': { batch: '3A', source: 'HR', role: 'RJ', joinDate: '2023-03-01', lastDate: '' }, 
+                'S008': { batch: '12A', source: 'HR', role: 'NJ', joinDate: '2023-12-01', lastDate: '2024-08-01' }, 
+                'S009': { batch: '12B', source: 'Ops', role: 'NJ', joinDate: '2023-12-15', lastDate: '' }, 
+                'S010': { batch: '3B', source: 'Ops', role: 'RJ', joinDate: '2023-03-15', lastDate: '2023-10-01' } 
+            };
+
+            globalSalesData = [
+                { month: '2023-04', staffId: 'S001', actual: 150000, realized: 135000 },
+                { month: '2023-04', staffId: 'S002', actual: 120000, realized: 110000 },
+                { month: '2023-04', staffId: 'S003', actual: 180000, realized: 160000 },
+                { month: '2023-05', staffId: 'S001', actual: 160000, realized: 150000 },
+                { month: '2023-05', staffId: 'S004', actual: 200000, realized: 180000 },
+                { month: '2023-05', staffId: 'S005', actual: 220000, realized: 210000 }
+            ];
+
+            const statusDiv = document.getElementById('upload-status');
+            statusDiv.innerHTML = `<span class="text-green-600">已成功載入模擬數據！</span>`;
+            setTimeout(() => { 
+                switchTab('dashboard'); 
+                document.getElementById('sales-filter-source').value = 'ALL'; 
+                document.getElementById('sales-filter-role').value = 'ALL'; 
+                document.getElementById('attrition-filter-source').value = 'ALL'; 
+                document.getElementById('attrition-filter-role').value = 'ALL'; 
+                updateDashboard(); 
+                statusDiv.innerHTML = ''; 
+            }, 800);
+        }
+
+        window.onload = function() {
+            const defaultApiUrl = document.getElementById('api-url').value;
+            if (defaultApiUrl && defaultApiUrl.trim() !== '') {
+                fetchFromAPI();
+            } else {
+                loadMockData(); 
+            }
+        }
+    </script>
+</body>
+</html>
