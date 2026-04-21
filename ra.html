@@ -81,7 +81,7 @@
                     <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition bg-gray-50">
                         <i class="fa-solid fa-users text-3xl text-gray-400 mb-3"></i>
                         <h3 class="font-bold text-lg mb-2">上傳 Sheet 1 (新人資料)</h3>
-                        <p class="text-xs text-gray-500 mb-4">包含 Batch(B), ID(C), HR/Ops(L), RJ/NJ(Q), Join Date(T), Last Date(AP), 梯次年月(AS)</p>
+                        <p class="text-xs text-gray-500 mb-4">包含 Batch Date(A), Batch(B), ID(C), Name(D), Dept(H), HR/Ops(L), RJ/NJ(Q), Join Date(T), Last Date(AP), 梯次年月(AS)</p>
                         <input type="file" id="file-sheet1" accept=".csv" class="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
                     </div>
 
@@ -315,7 +315,7 @@
                     </div>
                 </div>
                 <div class="glass-card">
-                    <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">在職時間分佈 (Tenure Distribution)</h3>
+                    <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">在職時間分佈 (點擊圖表查看詳細名單)</h3>
                     <div class="relative h-72">
                         <canvas id="chart-tenure"></canvas>
                     </div>
@@ -325,17 +325,50 @@
         </div>
     </div>
 
+    <!-- 新增：在職時間詳細名單 Modal (彈出視窗) -->
+    <div id="tenure-modal" class="fixed inset-0 z-[100] hidden bg-gray-900 bg-opacity-60 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+            <div class="p-5 border-b flex justify-between items-center bg-indigo-50">
+                <h3 class="text-xl font-bold text-indigo-900" id="tenure-modal-title">在職時間分佈詳細名單</h3>
+                <button onclick="closeTenureModal()" class="text-gray-500 hover:text-rose-600 focus:outline-none transition">
+                    <i class="fa-solid fa-times text-2xl"></i>
+                </button>
+            </div>
+            <div class="p-0 overflow-y-auto flex-1 bg-white">
+                <table class="min-w-full text-left text-sm text-gray-600">
+                    <thead class="bg-gray-100 text-gray-800 uppercase font-semibold sticky top-0 shadow-sm">
+                        <tr>
+                            <th class="px-6 py-4 whitespace-nowrap">Batch Date (A)</th>
+                            <th class="px-6 py-4 whitespace-nowrap">Staff ID (C)</th>
+                            <th class="px-6 py-4 whitespace-nowrap">Name (D)</th>
+                            <th class="px-6 py-4 whitespace-nowrap">Dept/Team (H)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tenure-modal-tbody" class="divide-y divide-gray-200">
+                        <!-- rows inserted dynamically -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="bg-gray-50 p-4 border-t text-right">
+                <button onclick="closeTenureModal()" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-6 rounded shadow transition">關閉視窗</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Application Logic -->
     <script>
         // --- Constants (Column Indices 0-based) ---
-        // Sheet 1: B(1)=BATCH, C(2)=STAFF ID, L(11)=HR/Ops, Q(16)=RJ/NJ, T(19)=Join Date, AP(41)=Last Date, AS(44)=Group Date
+        // Sheet 1: A(0)=BATCH DATE, B(1)=BATCH, C(2)=STAFF ID, D(3)=NAME, H(7)=DEPT, L(11)=HR/Ops, Q(16)=RJ/NJ, T(19)=Join Date, AP(41)=Last Date, AS(44)=Group Date
+        const S1_BATCH_DATE = 0;
         const S1_BATCH = 1;
         const S1_STAFF_ID = 2;
+        const S1_NAME = 3;      // 新增：D行 Name
+        const S1_DEPT = 7;      // 新增：H行 Dept
         const S1_SOURCE = 11;
         const S1_ROLE = 16;
         const S1_JOIN_DATE = 19;
         const S1_LAST_DATE = 41;
-        const S1_AS_DATE = 44; // AS行: 梯次所屬年月
+        const S1_AS_DATE = 44; 
 
         // Sheet 2: B(1)=Month, I(8)=STAFF ID, N(13)=ACTUAL SALES(NJ), R(17)=REALIZED SALES(RJ)
         const S2_MONTH = 1;
@@ -402,6 +435,41 @@
             return parseFloat(cleaned) || 0;
         }
 
+        // --- 新增：智能日期解析器 (處理 DD/MM/YYYY 與 Excel 數字格式) ---
+        function parseCustomDate(dateStr) {
+            if (!dateStr) return null;
+            let dStr = dateStr.toString().trim();
+            if (dStr === '' || dStr === '-' || dStr.toUpperCase() === 'N/A' || dStr.toUpperCase() === '#N/A') return null;
+
+            // 1. 處理 Excel Serial Date (例如 45566 = 2024-10-01)
+            if (!isNaN(dStr) && Number(dStr) > 20000) {
+                // Excel 的日期基準是 1899-12-30，需減去 25569 天來轉換為 UNIX 時間戳
+                return new Date((Number(dStr) - 25569) * 86400 * 1000);
+            }
+
+            // 2. 處理香港常用的 DD/MM/YYYY 或 DD-MM-YYYY 格式 (防呆：避免 1/10/2025 被當成 1月10日)
+            let matchDMY = dStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+            if (matchDMY) {
+                let day = parseInt(matchDMY[1], 10);
+                let month = parseInt(matchDMY[2], 10);
+                let year = parseInt(matchDMY[3], 10);
+                
+                // 如果月分 > 12，代表原本可能是 MM/DD/YYYY 格式，自動互換修正
+                if (month > 12 && day <= 12) {
+                    let temp = day;
+                    day = month;
+                    month = temp;
+                }
+                return new Date(`${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}T00:00:00`);
+            }
+
+            // 3. 原生 Date 解析 (處理 YYYY-MM-DD 等標準格式)
+            let d = new Date(dStr);
+            if (!isNaN(d.getTime())) return d;
+
+            return null;
+        }
+
         // 修改：強化日期解析，精準轉換 1-2026, 10-2025 格式為 YYYY年MM月
         function getBatchGroup(info) {
             let dStr = info.asDate;
@@ -466,26 +534,20 @@
             });
         }
 
-        // 修改：強化年資計算與在職判斷
+        // 修改：強化年資計算邏輯，並套用智能日期解析器
         function calculateTenureMonths(joinDateStr, lastDateStr) {
-            if (!joinDateStr) return -1;
-            const start = new Date(joinDateStr);
-            if (isNaN(start.getTime())) return -1;
+            const start = parseCustomDate(joinDateStr);
+            if (!start) return -1;
 
-            let end;
-            // 判斷是否為有效離職日期 (排除空白、-、N/A 等)
-            let rawLastDate = lastDateStr ? lastDateStr.trim().toUpperCase() : '';
-            const isResigned = rawLastDate !== '' && rawLastDate !== '-' && rawLastDate !== 'N/A' && rawLastDate !== '#N/A';
-
-            if (isResigned) {
-                end = new Date(lastDateStr);
-                if (isNaN(end.getTime())) end = new Date(); // Invalid format fallback
-            } else {
-                end = new Date(); // Still active (計算到今天)
+            let end = parseCustomDate(lastDateStr);
+            if (!end) {
+                end = new Date(); // 仍然在職 (計算到今天)
             }
 
-            const diffTime = Math.abs(end - start);
-            return diffTime / (1000 * 60 * 60 * 24 * 30.44); // Approx months
+            let diffTime = end.getTime() - start.getTime();
+            if (diffTime < 0) diffTime = 0; // 避免因為資料打錯 (離職日早於入職日) 而產生負數或跑到錯誤區間
+
+            return diffTime / (1000 * 60 * 60 * 24 * 30.44); // 回傳近似月數
         }
 
         // --- 修改：產生梯次年月 Checkbox 過濾選項 ---
@@ -662,7 +724,7 @@
             let totalHeadcount = 0;
             let totalResigned = 0;
             let totalActive = 0;
-            let tenureBuckets = { '<3個月': 0, '3-6個月': 0, '6-12個月': 0, '1年以上': 0 };
+            let tenureBuckets = { '<3個月': 0, '3-6個月': 0, '6-12個月': 0 };
 
             // Filter Staff for Attrition
             for (const [staffId, info] of Object.entries(globalStaffMap)) {
@@ -696,8 +758,7 @@
                 if (months >= 0) {
                     if (months < 3) tenureBuckets['<3個月']++;
                     else if (months < 6) tenureBuckets['3-6個月']++;
-                    else if (months < 12) tenureBuckets['6-12個月']++;
-                    else tenureBuckets['1年以上']++;
+                    else tenureBuckets['6-12個月']++; // 6個月以上的全部歸類在此
                 }
             }
 
@@ -868,8 +929,7 @@
                         backgroundColor: [
                             'rgba(248, 113, 113, 0.8)', // Red (<3m)
                             'rgba(251, 191, 36, 0.8)',  // Yellow (3-6m)
-                            'rgba(96, 165, 250, 0.8)',  // Blue (6-12m)
-                            'rgba(52, 211, 153, 0.8)'   // Green (>1y)
+                            'rgba(96, 165, 250, 0.8)'   // Blue (6-12m)
                         ],
                         borderWidth: 1
                     }]
@@ -877,9 +937,88 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    plugins: { legend: { position: 'right' } }
+                    plugins: { legend: { position: 'right' } },
+                    // 新增：Hover 時顯示手指游標，暗示可點擊
+                    onHover: (event, chartElement) => {
+                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
+                    },
+                    // 新增：點擊圓餅圖切片時觸發彈出視窗
+                    onClick: (event, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const label = chartTenureIns.data.labels[index];
+                            showTenureDetails(label);
+                        }
+                    }
                 }
             });
+        }
+
+        // --- 新增：顯示在職時間詳細名單邏輯 ---
+        function showTenureDetails(bucketLabel) {
+            const sourceFilter = document.getElementById('attrition-filter-source').value;
+            const roleFilter = document.getElementById('attrition-filter-role').value;
+            const selectedPeriods = getSelectedPeriods('attrition');
+
+            let matchedStaff = [];
+
+            for (const [staffId, info] of Object.entries(globalStaffMap)) {
+                // 套用當前的離職分析篩選條件
+                if (sourceFilter !== 'ALL' && info.source !== sourceFilter) continue;
+                if (roleFilter !== 'ALL' && info.role !== roleFilter) continue;
+
+                const batchGroup = getBatchGroup(info);
+                if (selectedPeriods.length > 0 && !selectedPeriods.includes(batchGroup)) continue;
+
+                // 重新計算年資，判斷是否屬於點擊的區間
+                let months = calculateTenureMonths(info.joinDate, info.lastDate);
+                if (months < 0) continue;
+
+                let matchesBucket = false;
+                if (bucketLabel === '<3個月' && months < 3) matchesBucket = true;
+                else if (bucketLabel === '3-6個月' && months >= 3 && months < 6) matchesBucket = true;
+                else if (bucketLabel === '6-12個月' && months >= 6) matchesBucket = true;
+
+                if (matchesBucket) {
+                    matchedStaff.push({
+                        batchDate: info.batchDate || '-',
+                        staffId: staffId,
+                        name: info.name || '-',
+                        dept: info.dept || '-'
+                    });
+                }
+            }
+
+            // 產生 Table HTML
+            const tbody = document.getElementById('tenure-modal-tbody');
+            tbody.innerHTML = '';
+            
+            if (matchedStaff.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">此區間沒有符合條件的員工資料。</td></tr>`;
+            } else {
+                // 按照 Batch Date 稍微排序一下
+                matchedStaff.sort((a, b) => a.batchDate.localeCompare(b.batchDate));
+                
+                matchedStaff.forEach(s => {
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-indigo-50 transition border-b border-gray-100">
+                            <td class="px-6 py-3">${s.batchDate}</td>
+                            <td class="px-6 py-3 font-semibold text-indigo-600">${s.staffId}</td>
+                            <td class="px-6 py-3 font-medium text-gray-800">${s.name}</td>
+                            <td class="px-6 py-3 text-gray-600">${s.dept}</td>
+                        </tr>
+                    `;
+                });
+            }
+
+            // 更新標題並顯示 Modal
+            document.getElementById('tenure-modal-title').innerText = `在職時間名單：${bucketLabel} (共 ${matchedStaff.length} 人)`;
+            document.getElementById('tenure-modal').classList.remove('hidden');
+        }
+
+        // 關閉 Modal 邏輯
+        function closeTenureModal() {
+            document.getElementById('tenure-modal').classList.add('hidden');
         }
 
         // --- Data Fetching Operations ---
@@ -906,12 +1045,15 @@
                     const staffId = row[S1_STAFF_ID] ? row[S1_STAFF_ID].toString().trim() : null;
                     if (staffId) {
                         globalStaffMap[staffId] = {
-                            asDate: row[S1_AS_DATE] ? row[S1_AS_DATE].toString().trim() : '',
+                            batchDate: row[S1_BATCH_DATE] ? row[S1_BATCH_DATE].toString().trim() : '',
                             batch: row[S1_BATCH] ? row[S1_BATCH].toString().trim() : '',
+                            name: row[S1_NAME] ? row[S1_NAME].toString().trim() : '', // 擷取 D行 Name
+                            dept: row[S1_DEPT] ? row[S1_DEPT].toString().trim() : '', // 擷取 H行 Dept
                             source: row[S1_SOURCE] ? row[S1_SOURCE].toString().trim() : '',
                             role: row[S1_ROLE] ? row[S1_ROLE].toString().trim().toUpperCase() : '',
                             joinDate: row[S1_JOIN_DATE] ? row[S1_JOIN_DATE].toString().trim() : '',
-                            lastDate: row[S1_LAST_DATE] ? row[S1_LAST_DATE].toString().trim() : ''
+                            lastDate: row[S1_LAST_DATE] ? row[S1_LAST_DATE].toString().trim() : '',
+                            asDate: row[S1_AS_DATE] ? row[S1_AS_DATE].toString().trim() : ''
                         };
                     }
                 }
@@ -957,12 +1099,15 @@
                     const staffId = row[S1_STAFF_ID] ? row[S1_STAFF_ID].toString().trim() : null;
                     if (staffId) {
                         globalStaffMap[staffId] = {
-                            asDate: row[S1_AS_DATE] ? row[S1_AS_DATE].toString().trim() : '',
+                            batchDate: row[S1_BATCH_DATE] ? row[S1_BATCH_DATE].toString().trim() : '',
                             batch: row[S1_BATCH] ? row[S1_BATCH].toString().trim() : '',
+                            name: row[S1_NAME] ? row[S1_NAME].toString().trim() : '', // 擷取 D行 Name
+                            dept: row[S1_DEPT] ? row[S1_DEPT].toString().trim() : '', // 擷取 H行 Dept
                             source: row[S1_SOURCE] ? row[S1_SOURCE].toString().trim() : '',
                             role: row[S1_ROLE] ? row[S1_ROLE].toString().trim().toUpperCase() : '',
                             joinDate: row[S1_JOIN_DATE] ? row[S1_JOIN_DATE].toString().trim() : '',
-                            lastDate: row[S1_LAST_DATE] ? row[S1_LAST_DATE].toString().trim() : ''
+                            lastDate: row[S1_LAST_DATE] ? row[S1_LAST_DATE].toString().trim() : '',
+                            asDate: row[S1_AS_DATE] ? row[S1_AS_DATE].toString().trim() : ''
                         };
                     }
                 }
@@ -999,19 +1144,16 @@
 
         function loadMockData() {
             globalStaffMap = {
-                // 示範: 加入 2025 年末的數據，測試 10-2025 格式
-                'S011': { asDate: '10-2025', batch: '10A', source: 'HR', role: 'NJ', joinDate: '2025-10-01', lastDate: '' },
-                // 修正：原本 11 月的人被標記離職，現在給他空白 lastDate，代表在職！
-                'S012': { asDate: '11-2025', batch: '11B', source: 'Ops', role: 'RJ', joinDate: '2025-11-15', lastDate: '' }, 
-                // 新增：一個 11 月已離職的人作為對比
-                'S014': { asDate: '11-2025', batch: '11C', source: 'HR', role: 'NJ', joinDate: '2025-11-20', lastDate: '2026-03-01' }, 
-                'S013': { asDate: '12-2025', batch: '12C', source: 'HR', role: 'NJ', joinDate: '2025-12-05', lastDate: '' },
+                // 示範: 加入 Name 和 Dept
+                'S011': { asDate: '10-2025', batchDate: '2025-10-01', name: '陳大文', dept: 'Team Alpha', batch: '10A', source: 'HR', role: 'NJ', joinDate: '2025-10-01', lastDate: '' },
+                'S012': { asDate: '11-2025', batchDate: '2025-11-15', name: '李小玲', dept: 'Team Beta', batch: '11B', source: 'Ops', role: 'RJ', joinDate: '2025-11-15', lastDate: '' }, 
+                'S014': { asDate: '11-2025', batchDate: '2025-11-20', name: '張偉強', dept: 'Team Alpha', batch: '11C', source: 'HR', role: 'NJ', joinDate: '2025-11-20', lastDate: '2026-03-01' }, 
+                'S013': { asDate: '12-2025', batchDate: '2025-12-05', name: '黃志明', dept: 'Team Gamma', batch: '12C', source: 'HR', role: 'NJ', joinDate: '2025-12-05', lastDate: '' },
                 
-                // 2026年的數據，測試 1-2026 格式
-                'S001': { asDate: '1-2026', batch: '1A', source: 'HR', role: 'NJ', joinDate: '2026-01-01', lastDate: '-' }, // 測試破折號 (應視為在職)
-                'S002': { asDate: '2-2026', batch: '2A', source: 'Ops', role: 'RJ', joinDate: '2026-02-15', lastDate: '2026-03-01' }, 
-                'S003': { asDate: '3-2026', batch: '3A', source: 'HR', role: 'NJ', joinDate: '2026-03-20', lastDate: '2026-06-01' }, 
-                'S004': { asDate: '4-2026', batch: '4A', source: 'HR', role: 'RJ', joinDate: '2026-04-01', lastDate: '' }
+                'S001': { asDate: '1-2026', batchDate: '2026-01-01', name: '林嘉欣', dept: 'Team Alpha', batch: '1A', source: 'HR', role: 'NJ', joinDate: '2026-01-01', lastDate: '-' }, 
+                'S002': { asDate: '2-2026', batchDate: '2026-02-15', name: '王志豪', dept: 'Team Beta', batch: '2A', source: 'Ops', role: 'RJ', joinDate: '2026-02-15', lastDate: '2026-03-01' }, 
+                'S003': { asDate: '3-2026', batchDate: '2026-03-20', name: '何美怡', dept: 'Team Gamma', batch: '3A', source: 'HR', role: 'NJ', joinDate: '2026-03-20', lastDate: '2026-06-01' }, 
+                'S004': { asDate: '4-2026', batchDate: '2026-04-01', name: '鄭國強', dept: 'Team Alpha', batch: '4A', source: 'HR', role: 'RJ', joinDate: '2026-04-01', lastDate: '' }
             };
 
             globalSalesData = [
