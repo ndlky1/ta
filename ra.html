@@ -81,7 +81,7 @@
                     <div class="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-indigo-500 transition bg-gray-50">
                         <i class="fa-solid fa-users text-3xl text-gray-400 mb-3"></i>
                         <h3 class="font-bold text-lg mb-2">上傳 Sheet 1 (新人資料)</h3>
-                        <p class="text-xs text-gray-500 mb-4">包含 Batch(B), ID(C), HR/Ops(L), RJ/NJ(Q), Join Date(T), Last Date(AP)</p>
+                        <p class="text-xs text-gray-500 mb-4">包含 Batch(B), ID(C), HR/Ops(L), RJ/NJ(Q), Join Date(T), Last Date(AP), 梯次年月(AS)</p>
                         <input type="file" id="file-sheet1" accept=".csv" class="text-sm w-full file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
                     </div>
 
@@ -144,6 +144,19 @@
                             <option value="ACTUAL">分析 Actual Sales</option>
                             <option value="REALIZED">分析 Realized Sales</option>
                         </select>
+                    </div>
+                    <!-- 修改：銷售區塊專屬年月 Checkbox 篩選器 -->
+                    <div class="flex items-center space-x-2 custom-dropdown relative">
+                        <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-calendar-days mr-2"></i>梯次年月：</label>
+                        <div class="relative">
+                            <button type="button" onclick="toggleDropdown('sales-period-panel')" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-indigo-500 focus:border-indigo-500 p-2 flex justify-between items-center min-w-[130px] outline-none">
+                                <span id="sales-period-text" class="truncate mr-2">全部梯次</span>
+                                <i class="fa-solid fa-chevron-down text-gray-500 text-xs"></i>
+                            </button>
+                            <div id="sales-period-panel" class="dropdown-panel hidden absolute z-50 w-56 bg-white border border-gray-200 rounded-md shadow-xl mt-1 max-h-60 overflow-y-auto right-0 lg:left-0 text-sm">
+                                <!-- dynamically populated -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -224,6 +237,19 @@
                             <option value="RJ">RJ</option>
                         </select>
                     </div>
+                    <!-- 修改：離職區塊專屬年月 Checkbox 篩選器 -->
+                    <div class="flex items-center space-x-2 custom-dropdown relative">
+                        <label class="font-bold text-gray-700 whitespace-nowrap"><i class="fa-solid fa-calendar-days mr-2"></i>梯次年月：</label>
+                        <div class="relative">
+                            <button type="button" onclick="toggleDropdown('attrition-period-panel')" class="bg-gray-50 border border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-rose-500 focus:border-rose-500 p-2 flex justify-between items-center min-w-[130px] outline-none">
+                                <span id="attrition-period-text" class="truncate mr-2">全部梯次</span>
+                                <i class="fa-solid fa-chevron-down text-gray-500 text-xs"></i>
+                            </button>
+                            <div id="attrition-period-panel" class="dropdown-panel hidden absolute z-50 w-56 bg-white border border-gray-200 rounded-md shadow-xl mt-1 max-h-60 overflow-y-auto right-0 lg:left-0 text-sm">
+                                <!-- dynamically populated -->
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -265,6 +291,14 @@
             </div>
 
             <!-- Attrition Charts -->
+            <!-- 新增：每月入職人數趨勢 (全寬) -->
+            <div class="glass-card mb-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">每月入職人數趨勢 (New Joiners per Month)</h3>
+                <div class="relative h-64">
+                    <canvas id="chart-joiners"></canvas>
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div class="glass-card">
                     <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">各梯次留任與離職狀況 (Retention by Batch)</h3>
@@ -286,13 +320,14 @@
     <!-- Application Logic -->
     <script>
         // --- Constants (Column Indices 0-based) ---
-        // Sheet 1: B(1)=BATCH, C(2)=STAFF ID, L(11)=HR/Ops, Q(16)=RJ/NJ, T(19)=Join Date, AP(41)=Last Date
+        // Sheet 1: B(1)=BATCH, C(2)=STAFF ID, L(11)=HR/Ops, Q(16)=RJ/NJ, T(19)=Join Date, AP(41)=Last Date, AS(44)=Group Date
         const S1_BATCH = 1;
         const S1_STAFF_ID = 2;
         const S1_SOURCE = 11;
         const S1_ROLE = 16;
         const S1_JOIN_DATE = 19;
         const S1_LAST_DATE = 41;
+        const S1_AS_DATE = 44; // AS行: 梯次所屬年月
 
         // Sheet 2: B(1)=Month, I(8)=STAFF ID, N(13)=ACTUAL SALES(NJ), R(17)=REALIZED SALES(RJ)
         const S2_MONTH = 1;
@@ -309,6 +344,25 @@
         let chartAvgSalesIns = null;
         let chartRetentionIns = null;
         let chartTenureIns = null;
+        let chartJoinersIns = null; // 新增趨勢圖 Instance
+
+        // --- Custom Dropdown Logic (新增 Checkbox 選單控制) ---
+        function toggleDropdown(panelId) {
+            const panel = document.getElementById(panelId);
+            const isHidden = panel.classList.contains('hidden');
+            // 先關閉所有其他的 panel
+            document.querySelectorAll('.dropdown-panel').forEach(p => p.classList.add('hidden'));
+            if (isHidden) {
+                panel.classList.remove('hidden');
+            }
+        }
+
+        // 點擊空白處自動關閉選單
+        window.addEventListener('click', function(e) {
+            if (!e.target.closest('.custom-dropdown')) {
+                document.querySelectorAll('.dropdown-panel').forEach(p => p.classList.add('hidden'));
+            }
+        });
 
         // --- UI Logic ---
         function switchTab(tabId) {
@@ -339,40 +393,180 @@
             return parseFloat(cleaned) || 0;
         }
 
-        function getBatchGroup(rawBatch) {
-            if (!rawBatch) return 'Unknown';
+        // 修改：強化日期解析，精準轉換 1-2026, 10-2025 格式為 YYYY年MM月
+        function getBatchGroup(info) {
+            let dStr = info.asDate;
+            if (dStr && dStr.trim() !== '') {
+                dStr = dStr.trim();
+                
+                // 1. 檢查 MM-YYYY 或 M-YYYY (例如 1-2026, 10-2025)
+                let matchMY = dStr.match(/^(\d{1,2})[-\/](\d{4})$/);
+                if (matchMY) {
+                    return `${matchMY[2]}年${matchMY[1].padStart(2, '0')}月`;
+                }
+
+                // 2. 檢查 YYYY-MM 或 YYYY年MM月
+                let matchYM = dStr.match(/(\d{4})[-\/年]\s*(\d{1,2})/);
+                if (matchYM) {
+                    return `${matchYM[1]}年${matchYM[2].padStart(2, '0')}月`;
+                }
+
+                // 3. 原生 Date 解析
+                let d = new Date(dStr);
+                if (!isNaN(d.getTime())) {
+                    let y = d.getFullYear();
+                    let m = (d.getMonth() + 1).toString().padStart(2, '0');
+                    return `${y}年${m}月`;
+                } 
+                
+                return dStr; // 若都失敗則直接回傳字串
+            }
+            
+            // 4. Fallback 回原本抓取 Batch 字串的邏輯
+            const rawBatch = info.batch || 'Unknown';
             const str = rawBatch.toString().trim();
             const match = str.match(/^(\d+)/);
             if (match) {
-                return match[1] + '月';
+                return `未知年份-${match[1].padStart(2, '0')}月`;
             }
             return str;
         }
 
+        // 修改：強化排序演算法，確保跨年份排序絕對正確
         function getSortedBatches(statsObj) {
             return Object.keys(statsObj).sort((a, b) => {
-                const numA = parseInt(a.replace('月', ''));
-                const numB = parseInt(b.replace('月', ''));
-                if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+                const getWeight = (str) => {
+                    // 嘗試抓取 YYYY 跟 MM 計算絕對權重 (例如 2025年10月 -> 202510)
+                    let match1 = str.match(/(\d{4})[-\/年]\s*(\d{1,2})/);
+                    if (match1) return parseInt(match1[1]) * 100 + parseInt(match1[2]);
+                    
+                    let match2 = str.match(/^(\d{1,2})[-\/](\d{4})/);
+                    if (match2) return parseInt(match2[2]) * 100 + parseInt(match2[1]);
+                    
+                    return null;
+                };
+
+                let weightA = getWeight(a);
+                let weightB = getWeight(b);
+
+                if (weightA !== null && weightB !== null) {
+                    return weightA - weightB; // 數字越小(越早)越前面
+                }
+
                 return a.localeCompare(b);
             });
         }
 
+        // 修改：強化年資計算與在職判斷
         function calculateTenureMonths(joinDateStr, lastDateStr) {
             if (!joinDateStr) return -1;
             const start = new Date(joinDateStr);
             if (isNaN(start.getTime())) return -1;
 
             let end;
-            if (lastDateStr && lastDateStr.trim() !== '') {
+            // 判斷是否為有效離職日期 (排除空白、-、N/A 等)
+            let rawLastDate = lastDateStr ? lastDateStr.trim().toUpperCase() : '';
+            const isResigned = rawLastDate !== '' && rawLastDate !== '-' && rawLastDate !== 'N/A' && rawLastDate !== '#N/A';
+
+            if (isResigned) {
                 end = new Date(lastDateStr);
                 if (isNaN(end.getTime())) end = new Date(); // Invalid format fallback
             } else {
-                end = new Date(); // Still active
+                end = new Date(); // Still active (計算到今天)
             }
 
             const diffTime = Math.abs(end - start);
             return diffTime / (1000 * 60 * 60 * 24 * 30.44); // Approx months
+        }
+
+        // --- 修改：產生梯次年月 Checkbox 過濾選項 ---
+        function populatePeriodFilters() {
+            let uniquePeriods = new Set();
+            
+            Object.values(globalStaffMap).forEach(info => {
+                let bg = getBatchGroup(info);
+                if (bg !== 'Unknown' && !bg.startsWith('未知年份')) {
+                    uniquePeriods.add(bg);
+                }
+            });
+
+            // 反向排序，讓最新的年月在最上面
+            const sortedPeriods = Array.from(uniquePeriods).sort((a, b) => b.localeCompare(a));
+
+            ['sales', 'attrition'].forEach(prefix => {
+                const panel = document.getElementById(`${prefix}-period-panel`);
+                if (!panel) return;
+                panel.innerHTML = '';
+
+                // Add "Select All" Checkbox
+                const selectAllDiv = document.createElement('div');
+                selectAllDiv.className = 'p-3 hover:bg-gray-50 border-b border-gray-200 sticky top-0 bg-white z-10';
+                selectAllDiv.innerHTML = `
+                    <label class="flex items-center space-x-3 cursor-pointer font-bold text-gray-700">
+                        <input type="checkbox" id="${prefix}-select-all" checked onchange="toggleAllPeriods('${prefix}')" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer">
+                        <span>全選 (Select All)</span>
+                    </label>
+                `;
+                panel.appendChild(selectAllDiv);
+
+                // Add individual checkboxes
+                sortedPeriods.forEach(p => {
+                    const div = document.createElement('div');
+                    div.className = 'p-2 px-3 hover:bg-gray-50';
+                    div.innerHTML = `
+                        <label class="flex items-center space-x-3 cursor-pointer text-gray-700">
+                            <input type="checkbox" value="${p}" checked onchange="updatePeriodSelection('${prefix}')" class="${prefix}-period-checkbox rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer">
+                            <span>${p}</span>
+                        </label>
+                    `;
+                    panel.appendChild(div);
+                });
+                
+                updatePeriodSelectionText(prefix);
+            });
+        }
+
+        // --- 新增 Checkbox 狀態管理 ---
+        function toggleAllPeriods(prefix) {
+            const selectAllCb = document.getElementById(`${prefix}-select-all`);
+            const checkboxes = document.querySelectorAll(`.${prefix}-period-checkbox`);
+            checkboxes.forEach(cb => cb.checked = selectAllCb.checked);
+            updatePeriodSelectionText(prefix);
+            
+            // Trigger chart updates
+            if (prefix === 'sales') updateSalesData();
+            if (prefix === 'attrition') updateAttritionData();
+        }
+
+        function updatePeriodSelection(prefix) {
+            updatePeriodSelectionText(prefix);
+            // Trigger chart updates
+            if (prefix === 'sales') updateSalesData();
+            if (prefix === 'attrition') updateAttritionData();
+        }
+
+        function updatePeriodSelectionText(prefix) {
+            const checkboxes = document.querySelectorAll(`.${prefix}-period-checkbox`);
+            const checked = document.querySelectorAll(`.${prefix}-period-checkbox:checked`);
+            const selectAllCb = document.getElementById(`${prefix}-select-all`);
+            const btnText = document.getElementById(`${prefix}-period-text`);
+
+            if (checked.length === checkboxes.length && checkboxes.length > 0) {
+                if(selectAllCb) selectAllCb.checked = true;
+                btnText.innerText = "全部梯次";
+            } else if (checked.length === 0) {
+                if(selectAllCb) selectAllCb.checked = false;
+                btnText.innerText = "請選擇";
+            } else {
+                if(selectAllCb) selectAllCb.checked = false;
+                btnText.innerText = `已選 ${checked.length} 項`;
+            }
+        }
+
+        // --- 修改：取得被選中的年月 ---
+        function getSelectedPeriods(prefix) {
+            const checkboxes = document.querySelectorAll(`.${prefix}-period-checkbox:checked`);
+            return Array.from(checkboxes).map(cb => cb.value);
         }
 
         // --- Main Update Trigger ---
@@ -391,6 +585,7 @@
             const sourceFilter = document.getElementById('sales-filter-source').value;
             const roleFilter = document.getElementById('sales-filter-role').value;
             const metricFilter = document.getElementById('sales-filter-metric').value;
+            const selectedPeriods = getSelectedPeriods('sales');
 
             let filteredStaffIds = new Set();
             let statsByBatch = {}; 
@@ -401,9 +596,13 @@
                 if (sourceFilter !== 'ALL' && info.source !== sourceFilter) continue;
                 if (roleFilter !== 'ALL' && info.role !== roleFilter) continue;
                 
+                const batchGroup = getBatchGroup(info); // 取得梯次年月
+                
+                // 套用年月 Checkbox 過濾
+                if (!selectedPeriods.includes(batchGroup)) continue;
+                
                 filteredStaffIds.add(staffId);
                 
-                const batchGroup = getBatchGroup(info.batch);
                 const role = (info.role === 'NJ' || info.role === 'RJ') ? info.role : 'OTHER';
                 
                 if (!statsByBatch[batchGroup]) {
@@ -423,7 +622,7 @@
             globalSalesData.forEach(sale => {
                 if (filteredStaffIds.has(sale.staffId)) {
                     const info = globalStaffMap[sale.staffId];
-                    const batchGroup = getBatchGroup(info.batch);
+                    const batchGroup = getBatchGroup(info);
                     const role = (info.role === 'NJ' || info.role === 'RJ') ? info.role : 'OTHER';
                     
                     totalActual += sale.actual;
@@ -448,6 +647,7 @@
         function updateAttritionData() {
             const sourceFilter = document.getElementById('attrition-filter-source').value;
             const roleFilter = document.getElementById('attrition-filter-role').value;
+            const selectedPeriods = getSelectedPeriods('attrition');
 
             let statsByBatch = {}; 
             let totalHeadcount = 0;
@@ -459,8 +659,11 @@
             for (const [staffId, info] of Object.entries(globalStaffMap)) {
                 if (sourceFilter !== 'ALL' && info.source !== sourceFilter) continue;
                 if (roleFilter !== 'ALL' && info.role !== roleFilter) continue;
+
+                const batchGroup = getBatchGroup(info);
                 
-                const batchGroup = getBatchGroup(info.batch);
+                // 套用年月 Checkbox 過濾
+                if (selectedPeriods.length > 0 && !selectedPeriods.includes(batchGroup)) continue;
                 
                 if (!statsByBatch[batchGroup]) {
                     statsByBatch[batchGroup] = { ACTIVE: 0, RESIGNED: 0 };
@@ -468,7 +671,10 @@
                 
                 totalHeadcount += 1;
 
-                const isResigned = info.lastDate && info.lastDate.trim() !== '';
+                // 修改：強化在職/離職狀態判斷邏輯 (無日期 或 填了破折號 等於 在職)
+                let rawLastDate = info.lastDate ? info.lastDate.trim().toUpperCase() : '';
+                const isResigned = rawLastDate !== '' && rawLastDate !== '-' && rawLastDate !== 'N/A' && rawLastDate !== '#N/A';
+                
                 if (isResigned) {
                     statsByBatch[batchGroup].RESIGNED += 1;
                     totalResigned += 1;
@@ -539,8 +745,36 @@
         function renderAttritionCharts(statsByBatch, tenureBuckets) {
             const batches = getSortedBatches(statsByBatch);
 
+            if (chartJoinersIns) chartJoinersIns.destroy();
             if (chartRetentionIns) chartRetentionIns.destroy();
             if (chartTenureIns) chartTenureIns.destroy();
+
+            // --- 新增：Chart 0: 每月入職人數趨勢 (Line Chart) ---
+            const ctxJoiners = document.getElementById('chart-joiners').getContext('2d');
+            chartJoinersIns = new Chart(ctxJoiners, {
+                type: 'line',
+                data: {
+                    labels: batches,
+                    datasets: [{
+                        label: '入職總人數 (New Joiners)',
+                        data: batches.map(b => statsByBatch[b].ACTIVE + statsByBatch[b].RESIGNED),
+                        borderColor: 'rgba(79, 70, 229, 1)', // Indigo
+                        backgroundColor: 'rgba(79, 70, 229, 0.15)',
+                        borderWidth: 3,
+                        fill: true,
+                        tension: 0.3, // 讓線條有微平滑感
+                        pointBackgroundColor: 'rgba(79, 70, 229, 1)',
+                        pointRadius: 5,
+                        pointHoverRadius: 7
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } },
+                    plugins: { legend: { display: false } }
+                }
+            });
 
             // Chart 3: Retention by Batch
             const ctxRetention = document.getElementById('chart-retention').getContext('2d');
@@ -609,6 +843,7 @@
                     const staffId = row[S1_STAFF_ID] ? row[S1_STAFF_ID].toString().trim() : null;
                     if (staffId) {
                         globalStaffMap[staffId] = {
+                            asDate: row[S1_AS_DATE] ? row[S1_AS_DATE].toString().trim() : '',
                             batch: row[S1_BATCH] ? row[S1_BATCH].toString().trim() : '',
                             source: row[S1_SOURCE] ? row[S1_SOURCE].toString().trim() : '',
                             role: row[S1_ROLE] ? row[S1_ROLE].toString().trim().toUpperCase() : '',
@@ -631,6 +866,9 @@
                     }
                 }
                 statusDiv.innerHTML = `<span class="text-green-600">處理成功！已載入 ${Object.keys(globalStaffMap).length} 名員工。</span>`;
+                
+                populatePeriodFilters(); // 更新年月篩選器選項
+                
                 setTimeout(() => { switchTab('dashboard'); updateDashboard(); }, 1000);
             } catch (err) {
                 statusDiv.innerHTML = "<span class='text-red-600'>解析檔案發生錯誤，請確定上傳的是正確的 CSV 格式。</span>"; console.error(err);
@@ -656,6 +894,7 @@
                     const staffId = row[S1_STAFF_ID] ? row[S1_STAFF_ID].toString().trim() : null;
                     if (staffId) {
                         globalStaffMap[staffId] = {
+                            asDate: row[S1_AS_DATE] ? row[S1_AS_DATE].toString().trim() : '',
                             batch: row[S1_BATCH] ? row[S1_BATCH].toString().trim() : '',
                             source: row[S1_SOURCE] ? row[S1_SOURCE].toString().trim() : '',
                             role: row[S1_ROLE] ? row[S1_ROLE].toString().trim().toUpperCase() : '',
@@ -678,6 +917,9 @@
                     }
                 }
                 statusDiv.innerHTML = `<span class="text-green-600 font-bold"><i class="fa-solid fa-check mr-1"></i>API 同步成功！載入了 ${Object.keys(globalStaffMap).length} 名員工。</span>`;
+                
+                populatePeriodFilters(); // 更新年月篩選器選項
+                
                 setTimeout(() => { 
                     switchTab('dashboard'); 
                     // Reset all filters on new data load
@@ -694,29 +936,41 @@
 
         function loadMockData() {
             globalStaffMap = {
-                'S001': { batch: '1A', source: 'HR', role: 'NJ', joinDate: '2023-01-01', lastDate: '' },
-                'S002': { batch: '1B', source: 'Ops', role: 'RJ', joinDate: '2023-01-15', lastDate: '2023-03-01' }, 
-                'S003': { batch: '1C', source: 'HR', role: 'NJ', joinDate: '2023-01-20', lastDate: '2023-06-01' }, 
-                'S004': { batch: '2A', source: 'HR', role: 'RJ', joinDate: '2023-02-01', lastDate: '' }, 
-                'S005': { batch: '2B', source: 'Ops', role: 'NJ', joinDate: '2023-02-10', lastDate: '' }, 
-                'S006': { batch: '2C', source: 'Ops', role: 'NJ', joinDate: '2023-02-15', lastDate: '2023-05-01' }, 
-                'S007': { batch: '3A', source: 'HR', role: 'RJ', joinDate: '2023-03-01', lastDate: '' }, 
-                'S008': { batch: '12A', source: 'HR', role: 'NJ', joinDate: '2023-12-01', lastDate: '2024-08-01' }, 
-                'S009': { batch: '12B', source: 'Ops', role: 'NJ', joinDate: '2023-12-15', lastDate: '' }, 
-                'S010': { batch: '3B', source: 'Ops', role: 'RJ', joinDate: '2023-03-15', lastDate: '2023-10-01' } 
+                // 示範: 加入 2025 年末的數據，測試 10-2025 格式
+                'S011': { asDate: '10-2025', batch: '10A', source: 'HR', role: 'NJ', joinDate: '2025-10-01', lastDate: '' },
+                // 修正：原本 11 月的人被標記離職，現在給他空白 lastDate，代表在職！
+                'S012': { asDate: '11-2025', batch: '11B', source: 'Ops', role: 'RJ', joinDate: '2025-11-15', lastDate: '' }, 
+                // 新增：一個 11 月已離職的人作為對比
+                'S014': { asDate: '11-2025', batch: '11C', source: 'HR', role: 'NJ', joinDate: '2025-11-20', lastDate: '2026-03-01' }, 
+                'S013': { asDate: '12-2025', batch: '12C', source: 'HR', role: 'NJ', joinDate: '2025-12-05', lastDate: '' },
+                
+                // 2026年的數據，測試 1-2026 格式
+                'S001': { asDate: '1-2026', batch: '1A', source: 'HR', role: 'NJ', joinDate: '2026-01-01', lastDate: '-' }, // 測試破折號 (應視為在職)
+                'S002': { asDate: '2-2026', batch: '2A', source: 'Ops', role: 'RJ', joinDate: '2026-02-15', lastDate: '2026-03-01' }, 
+                'S003': { asDate: '3-2026', batch: '3A', source: 'HR', role: 'NJ', joinDate: '2026-03-20', lastDate: '2026-06-01' }, 
+                'S004': { asDate: '4-2026', batch: '4A', source: 'HR', role: 'RJ', joinDate: '2026-04-01', lastDate: '' }
             };
 
             globalSalesData = [
-                { month: '2023-04', staffId: 'S001', actual: 150000, realized: 135000 },
-                { month: '2023-04', staffId: 'S002', actual: 120000, realized: 110000 },
-                { month: '2023-04', staffId: 'S003', actual: 180000, realized: 160000 },
-                { month: '2023-05', staffId: 'S001', actual: 160000, realized: 150000 },
-                { month: '2023-05', staffId: 'S004', actual: 200000, realized: 180000 },
-                { month: '2023-05', staffId: 'S005', actual: 220000, realized: 210000 }
+                // 2025 年的業績
+                { month: '2025-10', staffId: 'S011', actual: 50000, realized: 45000 },
+                { month: '2025-11', staffId: 'S011', actual: 80000, realized: 75000 },
+                { month: '2025-11', staffId: 'S012', actual: 60000, realized: 50000 },
+                { month: '2025-11', staffId: 'S014', actual: 40000, realized: 30000 },
+                { month: '2025-12', staffId: 'S013', actual: 90000, realized: 85000 },
+                
+                // 2026 年的業績
+                { month: '2026-01', staffId: 'S001', actual: 150000, realized: 135000 },
+                { month: '2026-02', staffId: 'S002', actual: 120000, realized: 110000 },
+                { month: '2026-03', staffId: 'S003', actual: 180000, realized: 160000 },
+                { month: '2026-04', staffId: 'S004', actual: 200000, realized: 180000 }
             ];
 
             const statusDiv = document.getElementById('upload-status');
             statusDiv.innerHTML = `<span class="text-green-600">已成功載入模擬數據！</span>`;
+            
+            populatePeriodFilters(); // 更新年月篩選器選項
+            
             setTimeout(() => { 
                 switchTab('dashboard'); 
                 document.getElementById('sales-filter-source').value = 'ALL'; 
