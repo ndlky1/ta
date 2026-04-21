@@ -199,6 +199,14 @@
             </div>
 
             <!-- Charts Section (Sales) -->
+            <!-- 新增：各梯次人數分佈 (NJ vs RJ Headcount) -->
+            <div class="glass-card mb-6">
+                <h3 class="text-lg font-bold text-gray-800 mb-4 text-center">各梯次人數分佈 (NJ vs RJ Headcount)</h3>
+                <div class="relative h-64">
+                    <canvas id="chart-sales-headcount"></canvas>
+                </div>
+            </div>
+
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
                 <div class="glass-card">
                     <h3 id="title-chart-sales" class="text-lg font-bold text-gray-800 mb-4 text-center">各梯次總銷售表現 (NJ vs RJ)</h3>
@@ -340,6 +348,7 @@
         let globalSalesData = []; // [ { month, staffId, actual, realized } ]
         
         // Chart Instances
+        let chartSalesHcIns = null; // 新增：人數分佈圖
         let chartSalesIns = null;
         let chartAvgSalesIns = null;
         let chartRetentionIns = null;
@@ -710,10 +719,30 @@
             document.getElementById('title-chart-sales').innerText = `各梯次總銷售表現 (${metricLabel} - NJ vs RJ)`;
             document.getElementById('title-chart-avg-sales').innerText = `各梯次人均銷售表現 (Average ${metricLabel} - NJ vs RJ)`;
 
+            if (chartSalesHcIns) chartSalesHcIns.destroy();
             if (chartSalesIns) chartSalesIns.destroy();
             if (chartAvgSalesIns) chartAvgSalesIns.destroy();
 
-            // Chart 1: Total Sales
+            // --- 新增：Chart 0: 各梯次人數分佈 (NJ vs RJ Headcount) ---
+            const ctxSalesHc = document.getElementById('chart-sales-headcount').getContext('2d');
+            chartSalesHcIns = new Chart(ctxSalesHc, {
+                type: 'bar',
+                data: {
+                    labels: batches,
+                    datasets: [
+                        { label: 'NJ 人數', data: batches.map(b => statsByBatch[b].NJ.hc), backgroundColor: 'rgba(59, 130, 246, 0.5)', borderColor: 'rgba(59, 130, 246, 1)', borderWidth: 1 },
+                        { label: 'RJ 人數', data: batches.map(b => statsByBatch[b].RJ.hc), backgroundColor: 'rgba(16, 185, 129, 0.5)', borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1 }
+                    ]
+                },
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    interaction: { mode: 'index', intersect: false }, 
+                    scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } 
+                }
+            });
+
+            // --- 升級：Chart 1: Total Sales (Hover 顯示人數) ---
             const ctxSales = document.getElementById('chart-sales').getContext('2d');
             chartSalesIns = new Chart(ctxSales, {
                 type: 'bar',
@@ -724,10 +753,27 @@
                         { label: `總 ${metricLabel} (RJ人員)`, data: batches.map(b => statsByBatch[b].RJ[metricKey]), backgroundColor: 'rgba(16, 185, 129, 0.7)', borderWidth: 1 }
                     ]
                 },
-                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { beginAtZero: true, ticks: { callback: v => 'HK$ ' + (v / 1000) + 'k' } } } }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const batch = context.label;
+                                    const isNJ = context.datasetIndex === 0;
+                                    const hc = isNJ ? statsByBatch[batch].NJ.hc : statsByBatch[batch].RJ.hc;
+                                    return `(人數: ${hc} 人)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: { y: { beginAtZero: true, ticks: { callback: v => 'HK$ ' + (v / 1000) + 'k' } } } 
+                }
             });
 
-            // Chart 2: Average Sales
+            // --- 升級：Chart 2: Average Sales (Hover 顯示人數) ---
             const ctxAvgSales = document.getElementById('chart-avg-sales').getContext('2d');
             chartAvgSalesIns = new Chart(ctxAvgSales, {
                 type: 'bar',
@@ -738,7 +784,24 @@
                         { label: `人均 ${metricLabel} (RJ人員)`, data: batches.map(b => statsByBatch[b].RJ.hc > 0 ? (statsByBatch[b].RJ[metricKey] / statsByBatch[b].RJ.hc) : 0), backgroundColor: 'rgba(255, 159, 64, 0.7)', borderWidth: 1 }
                     ]
                 },
-                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { beginAtZero: true, ticks: { callback: v => 'HK$ ' + (v / 1000) + 'k' } } } }
+                options: { 
+                    responsive: true, 
+                    maintainAspectRatio: false, 
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const batch = context.label;
+                                    const isNJ = context.datasetIndex === 0;
+                                    const hc = isNJ ? statsByBatch[batch].NJ.hc : statsByBatch[batch].RJ.hc;
+                                    return `(人數: ${hc} 人)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: { y: { beginAtZero: true, ticks: { callback: v => 'HK$ ' + (v / 1000) + 'k' } } } 
+                }
             });
         }
 
@@ -749,7 +812,7 @@
             if (chartRetentionIns) chartRetentionIns.destroy();
             if (chartTenureIns) chartTenureIns.destroy();
 
-            // --- 新增：Chart 0: 每月入職人數趨勢 (Line Chart) ---
+            // Chart: 每月入職人數趨勢 (Line Chart)
             const ctxJoiners = document.getElementById('chart-joiners').getContext('2d');
             chartJoinersIns = new Chart(ctxJoiners, {
                 type: 'line',
