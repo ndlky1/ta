@@ -354,7 +354,7 @@
         </div>
     </div> <!-- End of app-container -->
 
-    <!-- 新增：銷售詳細名單 Modal (彈出視窗) -->
+    <!-- 銷售詳細名單 Modal -->
     <div id="sales-modal" class="fixed inset-0 z-[100] hidden bg-gray-900 bg-opacity-60 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
         <div class="bg-white rounded-xl shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden">
             <div class="p-5 border-b flex justify-between items-center bg-indigo-50">
@@ -369,7 +369,7 @@
                         <tr>
                             <th class="px-6 py-4 whitespace-nowrap">Batch Date (A)</th>
                             <th class="px-6 py-4 whitespace-nowrap">Staff ID (C)</th>
-                            <th class="px-6 py-4 whitespace-nowrap">Name (D)</th>
+                            <th class="px-6 py-4 whitespace-nowrap">在職狀態 / 分佈</th>
                             <th class="px-6 py-4 whitespace-nowrap text-center">上數月數</th>
                             <th class="px-6 py-4 whitespace-nowrap text-right">總銷售 (HK$)</th>
                             <th class="px-6 py-4 whitespace-nowrap text-right text-emerald-700">平均月銷售 (HK$)</th>
@@ -386,7 +386,7 @@
         </div>
     </div>
 
-    <!-- 在職時間詳細名單 Modal (彈出視窗) -->
+    <!-- 在職時間詳細名單 Modal -->
     <div id="tenure-modal" class="fixed inset-0 z-[100] hidden bg-gray-900 bg-opacity-60 flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
         <div class="bg-white rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
             <div class="p-5 border-b flex justify-between items-center bg-indigo-50">
@@ -401,7 +401,6 @@
                         <tr>
                             <th class="px-6 py-4 whitespace-nowrap">Batch Date (A)</th>
                             <th class="px-6 py-4 whitespace-nowrap">Staff ID (C)</th>
-                            <th class="px-6 py-4 whitespace-nowrap">Name (D)</th>
                             <th class="px-6 py-4 whitespace-nowrap">Dept/Team (H)</th>
                         </tr>
                     </thead>
@@ -419,17 +418,12 @@
     <!-- Application Logic -->
     <script>
         // ===== 登入驗證與 SHA-256 Hash 邏輯 =====
-        // 預設密碼：admin123 的 SHA-256 Hash 值
         const EXPECTED_HASH = "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9"; 
         
-        // 全域權限標記
         let isAuthenticated = false;
 
         async function verifyPassword() {
             const pwdInput = document.getElementById('login-password').value;
-            const errorMsg = document.getElementById('login-error');
-            
-            // 訪客模式：只要點擊就進入儀表板
             document.getElementById('login-container').classList.add('hidden');
             document.getElementById('app-container').classList.remove('hidden');
 
@@ -445,12 +439,9 @@
                 const hashArray = Array.from(new Uint8Array(hashBuffer));
                 const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 
-                // 比對指紋
                 if (hashHex === EXPECTED_HASH) {
-                    // 密碼正確：授權並載入數據
                     isAuthenticated = true;
                     document.getElementById('auth-warning-msg').classList.add('hidden');
-                    
                     const defaultApiUrl = document.getElementById('api-url').value;
                     if (defaultApiUrl && defaultApiUrl.trim() !== '') {
                         fetchFromAPI();
@@ -458,7 +449,6 @@
                         loadMockData(); 
                     }
                 } else {
-                    // 密碼錯誤：進入訪客模式，不載入數據
                     isAuthenticated = false;
                     setGuestMode();
                 }
@@ -472,8 +462,6 @@
         function setGuestMode() {
             document.getElementById('data-status').innerHTML = `<span class="text-amber-600 font-bold"><i class="fa-solid fa-user-secret mr-1"></i>訪客模式 (未授權)：數據載入已禁用</span>`;
             document.getElementById('auth-warning-msg').classList.remove('hidden');
-            
-            // 禁用相關操作 UI
             document.querySelectorAll('.auth-required-btn').forEach(btn => {
                 btn.disabled = true;
                 btn.classList.add('opacity-50', 'cursor-not-allowed');
@@ -484,13 +472,11 @@
             });
         }
 
-        // 監聽 Enter 鍵登入
         document.getElementById('login-password')?.addEventListener('keypress', function (e) {
             if (e.key === 'Enter') verifyPassword();
         });
 
-
-        // --- Constants (Column Indices 0-based) ---
+        // --- Constants ---
         const S1_BATCH_DATE = 0;
         const S1_BATCH = 1;
         const S1_STAFF_ID = 2;
@@ -507,11 +493,8 @@
         const S2_ACTUAL = 13;
         const S2_REALIZED = 17;
 
-        // Global Data Store
         let globalStaffMap = {}; 
         let globalSalesData = [];
-        
-        // Chart Instances
         let chartSalesHcIns = null; 
         let chartSalesIns = null;
         let chartAvgSalesIns = null;
@@ -519,14 +502,11 @@
         let chartTenureIns = null;
         let chartJoinersIns = null; 
 
-        // --- Custom Dropdown Logic ---
         function toggleDropdown(panelId) {
             const panel = document.getElementById(panelId);
             const isHidden = panel.classList.contains('hidden');
             document.querySelectorAll('.dropdown-panel').forEach(p => p.classList.add('hidden'));
-            if (isHidden) {
-                panel.classList.remove('hidden');
-            }
+            if (isHidden) panel.classList.remove('hidden');
         }
 
         window.addEventListener('click', function(e) {
@@ -535,14 +515,11 @@
             }
         });
 
-        // --- UI Logic ---
         function switchTab(tabId) {
             document.getElementById('tab-dashboard').classList.add('hide');
             document.getElementById('tab-data-source').classList.add('hide');
-            
             document.getElementById('btn-dashboard').classList.remove('bg-indigo-700');
             document.getElementById('btn-data').classList.remove('bg-indigo-700');
-
             if(tabId === 'dashboard') {
                 document.getElementById('tab-dashboard').classList.remove('hide');
                 document.getElementById('btn-dashboard').classList.add('bg-indigo-700');
@@ -552,11 +529,7 @@
             }
         }
 
-        // --- Data Processing Helpers ---
-        function formatCurrency(num) {
-            return 'HK$ ' + num.toLocaleString('en-US', { maximumFractionDigits: 0 });
-        }
-
+        function formatCurrency(num) { return 'HK$ ' + num.toLocaleString('en-US', { maximumFractionDigits: 0 }); }
         function cleanNumber(val) {
             if (!val) return 0;
             if (typeof val === 'number') return val;
@@ -568,26 +541,17 @@
             if (!dateStr) return null;
             let dStr = dateStr.toString().trim();
             if (dStr === '' || dStr === '-' || dStr.toUpperCase() === 'N/A' || dStr.toUpperCase() === '#N/A') return null;
-
-            if (!isNaN(dStr) && Number(dStr) > 20000) {
-                return new Date((Number(dStr) - 25569) * 86400 * 1000);
-            }
-
+            if (!isNaN(dStr) && Number(dStr) > 20000) return new Date((Number(dStr) - 25569) * 86400 * 1000);
             let matchDMY = dStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
             if (matchDMY) {
                 let day = parseInt(matchDMY[1], 10);
                 let month = parseInt(matchDMY[2], 10);
                 let year = parseInt(matchDMY[3], 10);
-                if (month > 12 && day <= 12) {
-                    let temp = day;
-                    day = month;
-                    month = temp;
-                }
+                if (month > 12 && day <= 12) { let temp = day; day = month; month = temp; }
                 return new Date(`${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}T00:00:00`);
             }
             let d = new Date(dStr);
-            if (!isNaN(d.getTime())) return d;
-            return null;
+            return isNaN(d.getTime()) ? null : d;
         }
 
         function getBatchGroup(info) {
@@ -595,82 +559,58 @@
             if (dStr && dStr.trim() !== '') {
                 dStr = dStr.trim();
                 let matchMY = dStr.match(/^(\d{1,2})[-\/](\d{4})$/);
-                if (matchMY) {
-                    return `${matchMY[2]}年${matchMY[1].padStart(2, '0')}月`;
-                }
+                if (matchMY) return `${matchMY[2]}年${matchMY[1].padStart(2, '0')}月`;
                 let matchYM = dStr.match(/(\d{4})[-\/年]\s*(\d{1,2})/);
-                if (matchYM) {
-                    return `${matchYM[1]}年${matchYM[2].padStart(2, '0')}月`;
-                }
+                if (matchYM) return `${matchYM[1]}年${matchYM[2].padStart(2, '0')}月`;
                 let d = new Date(dStr);
-                if (!isNaN(d.getTime())) {
-                    let y = d.getFullYear();
-                    let m = (d.getMonth() + 1).toString().padStart(2, '0');
-                    return `${y}年${m}月`;
-                } 
+                if (!isNaN(d.getTime())) return `${d.getFullYear()}年${(d.getMonth() + 1).toString().padStart(2, '0')}月`;
                 return dStr;
             }
             const rawBatch = info.batch || 'Unknown';
             const str = rawBatch.toString().trim();
             const match = str.match(/^(\d+)/);
-            if (match) {
-                return `未知年份-${match[1].padStart(2, '0')}月`;
-            }
-            return str;
+            return match ? `未知年份-${match[1].padStart(2, '0')}月` : str;
         }
 
         function getSortedBatches(statsObj) {
             return Object.keys(statsObj).sort((a, b) => {
                 const getWeight = (str) => {
-                    let match1 = str.match(/(\d{4})[-\/年]\s*(\d{1,2})/);
-                    if (match1) return parseInt(match1[1]) * 100 + parseInt(match1[2]);
-                    let match2 = str.match(/^(\d{1,2})[-\/](\d{4})/);
-                    if (match2) return parseInt(match2[2]) * 100 + parseInt(match2[1]);
+                    let m1 = str.match(/(\d{4})[-\/年]\s*(\d{1,2})/);
+                    if (m1) return parseInt(m1[1]) * 100 + parseInt(m1[2]);
+                    let m2 = str.match(/^(\d{1,2})[-\/](\d{4})/);
+                    if (m2) return parseInt(m2[2]) * 100 + parseInt(m2[1]);
                     return null;
                 };
-                let weightA = getWeight(a);
-                let weightB = getWeight(b);
-                if (weightA !== null && weightB !== null) {
-                    return weightA - weightB;
-                }
-                return a.localeCompare(b);
+                let wA = getWeight(a), wB = getWeight(b);
+                return (wA !== null && wB !== null) ? wA - wB : a.localeCompare(b);
             });
         }
 
         function calculateTenureMonths(joinDateStr, lastDateStr) {
             const start = parseCustomDate(joinDateStr);
             if (!start) return -1;
-            let end = parseCustomDate(lastDateStr);
-            if (!end) {
-                end = new Date();
-            }
+            let end = parseCustomDate(lastDateStr) || new Date();
             let diffTime = end.getTime() - start.getTime();
-            if (diffTime < 0) diffTime = 0;
-            return diffTime / (1000 * 60 * 60 * 24 * 30.44);
+            return diffTime < 0 ? 0 : diffTime / (1000 * 60 * 60 * 24 * 30.44);
         }
 
         function populatePeriodFilters() {
             let uniquePeriods = new Set();
             Object.values(globalStaffMap).forEach(info => {
                 let bg = getBatchGroup(info);
-                if (bg !== 'Unknown' && !bg.startsWith('未知年份')) {
-                    uniquePeriods.add(bg);
-                }
+                if (bg !== 'Unknown' && !bg.startsWith('未知年份')) uniquePeriods.add(bg);
             });
             const sortedPeriods = Array.from(uniquePeriods).sort((a, b) => b.localeCompare(a));
             ['sales', 'attrition'].forEach(prefix => {
                 const panel = document.getElementById(`${prefix}-period-panel`);
                 if (!panel) return;
-                panel.innerHTML = '';
-                const selectAllDiv = document.createElement('div');
-                selectAllDiv.className = 'p-3 hover:bg-gray-50 border-b border-gray-200 sticky top-0 bg-white z-10';
-                selectAllDiv.innerHTML = `
-                    <label class="flex items-center space-x-3 cursor-pointer font-bold text-gray-700">
-                        <input type="checkbox" id="${prefix}-select-all" checked onchange="toggleAllPeriods('${prefix}')" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer">
-                        <span>全選 (Select All)</span>
-                    </label>
-                `;
-                panel.appendChild(selectAllDiv);
+                panel.innerHTML = `
+                    <div class="p-3 hover:bg-gray-50 border-b border-gray-200 sticky top-0 bg-white z-10">
+                        <label class="flex items-center space-x-3 cursor-pointer font-bold text-gray-700">
+                            <input type="checkbox" id="${prefix}-select-all" checked onchange="toggleAllPeriods('${prefix}')" class="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer">
+                            <span>全選 (Select All)</span>
+                        </label>
+                    </div>`;
                 sortedPeriods.forEach(p => {
                     const div = document.createElement('div');
                     div.className = 'p-2 px-3 hover:bg-gray-50';
@@ -678,8 +618,7 @@
                         <label class="flex items-center space-x-3 cursor-pointer text-gray-700">
                             <input type="checkbox" value="${p}" checked onchange="updatePeriodSelection('${prefix}')" class="${prefix}-period-checkbox rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 w-4 h-4 cursor-pointer">
                             <span>${p}</span>
-                        </label>
-                    `;
+                        </label>`;
                     panel.appendChild(div);
                 });
                 updatePeriodSelectionText(prefix);
@@ -688,17 +627,14 @@
 
         function toggleAllPeriods(prefix) {
             const selectAllCb = document.getElementById(`${prefix}-select-all`);
-            const checkboxes = document.querySelectorAll(`.${prefix}-period-checkbox`);
-            checkboxes.forEach(cb => cb.checked = selectAllCb.checked);
+            document.querySelectorAll(`.${prefix}-period-checkbox`).forEach(cb => cb.checked = selectAllCb.checked);
             updatePeriodSelectionText(prefix);
-            if (prefix === 'sales') updateSalesData();
-            if (prefix === 'attrition') updateAttritionData();
+            prefix === 'sales' ? updateSalesData() : updateAttritionData();
         }
 
         function updatePeriodSelection(prefix) {
             updatePeriodSelectionText(prefix);
-            if (prefix === 'sales') updateSalesData();
-            if (prefix === 'attrition') updateAttritionData();
+            prefix === 'sales' ? updateSalesData() : updateAttritionData();
         }
 
         function updatePeriodSelectionText(prefix) {
@@ -718,17 +654,12 @@
             }
         }
 
-        function getSelectedPeriods(prefix) {
-            const checkboxes = document.querySelectorAll(`.${prefix}-period-checkbox:checked`);
-            return Array.from(checkboxes).map(cb => cb.value);
-        }
+        function getSelectedPeriods(prefix) { return Array.from(document.querySelectorAll(`.${prefix}-period-checkbox:checked`)).map(cb => cb.value); }
 
         function updateDashboard() {
             if(Object.keys(globalStaffMap).length === 0) return;
-            updateSalesData();
-            updateAttritionData();
-            const totalStaff = Object.keys(globalStaffMap).length;
-            document.getElementById('data-status').innerHTML = `<span class="text-green-600 font-bold"><i class="fa-solid fa-check-circle mr-1"></i>系統共載入 ${totalStaff} 筆人員資料</span>`;
+            updateSalesData(); updateAttritionData();
+            document.getElementById('data-status').innerHTML = `<span class="text-green-600 font-bold"><i class="fa-solid fa-check-circle mr-1"></i>系統共載入 ${Object.keys(globalStaffMap).length} 筆人員資料</span>`;
         }
 
         function updateSalesData() {
@@ -736,42 +667,28 @@
             const roleFilter = document.getElementById('sales-filter-role').value;
             const metricFilter = document.getElementById('sales-filter-metric').value;
             const selectedPeriods = getSelectedPeriods('sales');
-            let filteredStaffIds = new Set();
-            let statsByBatch = {}; 
-            let totalHeadcount = 0;
+            let filteredStaffIds = new Set(), statsByBatch = {}, totalHeadcount = 0;
             for (const [staffId, info] of Object.entries(globalStaffMap)) {
                 if (sourceFilter !== 'ALL' && info.source !== sourceFilter) continue;
                 if (roleFilter !== 'ALL' && info.role !== roleFilter) continue;
-                const batchGroup = getBatchGroup(info);
-                if (selectedPeriods.length > 0 && !selectedPeriods.includes(batchGroup)) continue;
+                const bg = getBatchGroup(info);
+                if (selectedPeriods.length > 0 && !selectedPeriods.includes(bg)) continue;
                 filteredStaffIds.add(staffId);
                 const role = (info.role === 'NJ' || info.role === 'RJ') ? info.role : 'OTHER';
-                if (!statsByBatch[batchGroup]) {
-                    statsByBatch[batchGroup] = { 
-                        NJ: { hc: 0, actual: 0, realized: 0, records: new Set() }, 
-                        RJ: { hc: 0, actual: 0, realized: 0, records: new Set() } 
-                    };
-                }
-                if (role === 'NJ' || role === 'RJ') {
-                    statsByBatch[batchGroup][role].hc += 1;
-                }
+                if (!statsByBatch[bg]) statsByBatch[bg] = { NJ: { hc: 0, actual: 0, realized: 0, records: new Set() }, RJ: { hc: 0, actual: 0, realized: 0, records: new Set() } };
+                if (role === 'NJ' || role === 'RJ') statsByBatch[bg][role].hc += 1;
                 totalHeadcount += 1;
             }
-            let totalActual = 0;
-            let totalRealized = 0;
+            let totalActual = 0, totalRealized = 0;
             globalSalesData.forEach(sale => {
                 if (filteredStaffIds.has(sale.staffId)) {
-                    const info = globalStaffMap[sale.staffId];
-                    const batchGroup = getBatchGroup(info);
+                    const info = globalStaffMap[sale.staffId], bg = getBatchGroup(info);
                     const role = (info.role === 'NJ' || info.role === 'RJ') ? info.role : 'OTHER';
-                    totalActual += sale.actual;
-                    totalRealized += sale.realized;
-                    if (statsByBatch[batchGroup] && (role === 'NJ' || role === 'RJ')) {
-                        statsByBatch[batchGroup][role].actual += sale.actual;
-                        statsByBatch[batchGroup][role].realized += sale.realized;
-                        if (sale.month) {
-                            statsByBatch[batchGroup][role].records.add(`${sale.staffId}-${sale.month}`);
-                        }
+                    totalActual += sale.actual; totalRealized += sale.realized;
+                    if (statsByBatch[bg] && (role === 'NJ' || role === 'RJ')) {
+                        statsByBatch[bg][role].actual += sale.actual;
+                        statsByBatch[bg][role].realized += sale.realized;
+                        if (sale.month) statsByBatch[bg][role].records.add(`${sale.staffId}-${sale.month}`);
                     }
                 }
             });
@@ -785,158 +702,54 @@
             const sourceFilter = document.getElementById('attrition-filter-source').value;
             const roleFilter = document.getElementById('attrition-filter-role').value;
             const selectedPeriods = getSelectedPeriods('attrition');
-            let statsByBatch = {}; 
-            let totalHeadcount = 0;
-            let totalResigned = 0;
-            let totalActive = 0;
-            let tenureBuckets = { '<3個月': 0, '3-6個月': 0, '6-12個月': 0 };
+            let statsByBatch = {}, totalHeadcount = 0, totalResigned = 0, totalActive = 0, tenureBuckets = { '<3個月': 0, '3-6個月': 0, '6-12個月': 0 };
             for (const [staffId, info] of Object.entries(globalStaffMap)) {
                 if (sourceFilter !== 'ALL' && info.source !== sourceFilter) continue;
                 if (roleFilter !== 'ALL' && info.role !== roleFilter) continue;
-                const batchGroup = getBatchGroup(info);
-                if (selectedPeriods.length > 0 && !selectedPeriods.includes(batchGroup)) continue;
-                if (!statsByBatch[batchGroup]) {
-                    statsByBatch[batchGroup] = { ACTIVE: 0, RESIGNED: 0 };
-                }
+                const bg = getBatchGroup(info);
+                if (selectedPeriods.length > 0 && !selectedPeriods.includes(bg)) continue;
+                if (!statsByBatch[bg]) statsByBatch[bg] = { ACTIVE: 0, RESIGNED: 0 };
                 totalHeadcount += 1;
-                let rawLastDate = info.lastDate ? info.lastDate.trim().toUpperCase() : '';
-                const isResigned = rawLastDate !== '' && rawLastDate !== '-' && rawLastDate !== 'N/A' && rawLastDate !== '#N/A';
-                if (isResigned) {
-                    statsByBatch[batchGroup].RESIGNED += 1;
-                    totalResigned += 1;
-                } else {
-                    statsByBatch[batchGroup].ACTIVE += 1;
-                    totalActive += 1;
-                }
-                let months = calculateTenureMonths(info.joinDate, info.lastDate);
-                if (months >= 0) {
-                    if (months < 3) tenureBuckets['<3個月']++;
-                    else if (months < 6) tenureBuckets['3-6個月']++;
-                    else tenureBuckets['6-12個月']++;
+                let rawLast = info.lastDate ? info.lastDate.trim().toUpperCase() : '';
+                const isResigned = rawLast !== '' && rawLast !== '-' && rawLast !== 'N/A' && rawLast !== '#N/A';
+                if (isResigned) { statsByBatch[bg].RESIGNED += 1; totalResigned += 1; } else { statsByBatch[bg].ACTIVE += 1; totalActive += 1; }
+                let m = calculateTenureMonths(info.joinDate, info.lastDate);
+                if (m >= 0) {
+                    if (m < 3) tenureBuckets['<3個月']++; else if (m < 6) tenureBuckets['3-6個月']++; else tenureBuckets['6-12個月']++;
                 }
             }
             document.getElementById('kpi-active').innerText = totalActive;
             document.getElementById('kpi-resigned').innerText = totalResigned;
-            let retentionRate = totalHeadcount > 0 ? ((totalActive / totalHeadcount) * 100).toFixed(1) : 0;
-            document.getElementById('kpi-retention-rate').innerText = retentionRate + '%';
+            document.getElementById('kpi-retention-rate').innerText = (totalHeadcount > 0 ? (totalActive/totalHeadcount*100).toFixed(1) : 0) + '%';
             renderAttritionCharts(statsByBatch, tenureBuckets);
         }
 
         function renderSalesCharts(statsByBatch, metricFilter) {
             const batches = getSortedBatches(statsByBatch);
-            const metricKey = metricFilter === 'ACTUAL' ? 'actual' : 'realized';
-            const metricLabel = metricFilter === 'ACTUAL' ? 'Actual Sales' : 'Realized Sales';
-            document.getElementById('title-chart-sales').innerText = `各梯次總銷售表現 (點擊柱狀圖查看明細)`;
-            document.getElementById('title-chart-avg-sales').innerText = `各梯次人均每月銷售表現 (Avg. Monthly Sales per Head)`;
+            const mKey = metricFilter === 'ACTUAL' ? 'actual' : 'realized';
+            const mLab = metricFilter === 'ACTUAL' ? 'Actual Sales' : 'Realized Sales';
             if (chartSalesHcIns) chartSalesHcIns.destroy();
             if (chartSalesIns) chartSalesIns.destroy();
             if (chartAvgSalesIns) chartAvgSalesIns.destroy();
-            const ctxSalesHc = document.getElementById('chart-sales-headcount').getContext('2d');
-            chartSalesHcIns = new Chart(ctxSalesHc, {
+            chartSalesHcIns = new Chart(document.getElementById('chart-sales-headcount'), {
                 type: 'bar',
-                data: {
-                    labels: batches,
-                    datasets: [
-                        { label: 'NJ 人數', data: batches.map(b => statsByBatch[b].NJ.hc), backgroundColor: 'rgba(59, 130, 246, 0.5)', borderColor: 'rgba(59, 130, 246, 1)', borderWidth: 1 },
-                        { label: 'RJ 人數', data: batches.map(b => statsByBatch[b].RJ.hc), backgroundColor: 'rgba(16, 185, 129, 0.5)', borderColor: 'rgba(16, 185, 129, 1)', borderWidth: 1 }
-                    ]
-                },
-                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+                data: { labels: batches, datasets: [{ label: 'NJ 人數', data: batches.map(b => statsByBatch[b].NJ.hc), backgroundColor: 'rgba(59, 130, 246, 0.5)' }, { label: 'RJ 人數', data: batches.map(b => statsByBatch[b].RJ.hc), backgroundColor: 'rgba(16, 185, 129, 0.5)' }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
             });
-            const ctxSales = document.getElementById('chart-sales').getContext('2d');
-            chartSalesIns = new Chart(ctxSales, {
-                type: 'bar',
-                data: {
-                    labels: batches,
-                    datasets: [
-                        { label: `總 ${metricLabel} (NJ人員)`, data: batches.map(b => statsByBatch[b].NJ[metricKey]), backgroundColor: 'rgba(59, 130, 246, 0.7)', borderWidth: 1 },
-                        { label: `總 ${metricLabel} (RJ人員)`, data: batches.map(b => statsByBatch[b].RJ[metricKey]), backgroundColor: 'rgba(16, 185, 129, 0.7)', borderWidth: 1 }
-                    ]
-                },
-                options: { 
-                    responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-                    onHover: (event, elements, chart) => {
-                        const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
-                        event.native.target.style.cursor = points.length ? 'pointer' : 'default';
-                    },
-                    onClick: (event, elements, chart) => {
-                        const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
-                        if (points.length > 0) {
-                            const datasetIndex = points[0].datasetIndex;
-                            const index = points[0].index;
-                            const batch = chart.data.labels[index];
-                            const isNJ = datasetIndex === 0;
-                            const roleClicked = isNJ ? 'NJ' : 'RJ';
-                            showSalesDetails(batch, roleClicked, metricFilter);
-                        }
-                    },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                afterLabel: function(context) {
-                                    const batch = context.label;
-                                    const isNJ = context.datasetIndex === 0;
-                                    const hc = isNJ ? statsByBatch[batch].NJ.hc : statsByBatch[batch].RJ.hc;
-                                    const recordsCount = isNJ ? statsByBatch[batch].NJ.records.size : statsByBatch[batch].RJ.records.size;
-                                    const avgMonths = hc > 0 ? (recordsCount / hc).toFixed(1) : 0;
-                                    return `(人數: ${hc} 人, 平均上數: ${avgMonths} 個月) - 點擊查看明細`;
-                                }
-                            }
-                        }
-                    },
-                    scales: { y: { beginAtZero: true, ticks: { callback: v => 'HK$ ' + (v / 1000) + 'k' } } } 
-                }
-            });
-            const ctxAvgSales = document.getElementById('chart-avg-sales').getContext('2d');
-            chartAvgSalesIns = new Chart(ctxAvgSales, {
-                type: 'bar',
-                data: {
-                    labels: batches,
-                    datasets: [
-                        { label: `平均月銷售 ${metricLabel} (NJ人員)`, data: batches.map(b => {
-                            const rCount = statsByBatch[b].NJ.records.size;
-                            return rCount > 0 ? (statsByBatch[b].NJ[metricKey] / rCount) : 0;
-                        }), backgroundColor: 'rgba(255, 99, 132, 0.7)', borderWidth: 1 },
-                        { label: `平均月銷售 ${metricLabel} (RJ人員)`, data: batches.map(b => {
-                            const rCount = statsByBatch[b].RJ.records.size;
-                            return rCount > 0 ? (statsByBatch[b].RJ[metricKey] / rCount) : 0;
-                        }), backgroundColor: 'rgba(255, 159, 64, 0.7)', borderWidth: 1 }
-                    ]
-                },
-                options: { 
-                    responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
-                    onHover: (event, elements, chart) => {
-                        const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
-                        event.native.target.style.cursor = points.length ? 'pointer' : 'default';
-                    },
-                    onClick: (event, elements, chart) => {
-                        const points = chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, true);
-                        if (points.length > 0) {
-                            const datasetIndex = points[0].datasetIndex;
-                            const index = points[0].index;
-                            const batch = chart.data.labels[index];
-                            const isNJ = datasetIndex === 0;
-                            const roleClicked = isNJ ? 'NJ' : 'RJ';
-                            showSalesDetails(batch, roleClicked, metricFilter);
-                        }
-                    },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                afterLabel: function(context) {
-                                    const batch = context.label;
-                                    const isNJ = context.datasetIndex === 0;
-                                    const hc = isNJ ? statsByBatch[batch].NJ.hc : statsByBatch[batch].RJ.hc;
-                                    const recordsCount = isNJ ? statsByBatch[batch].NJ.records.size : statsByBatch[batch].RJ.records.size;
-                                    const avgMonths = hc > 0 ? (recordsCount / hc).toFixed(1) : 0;
-                                    return `(人數: ${hc} 人, 平均上數: ${avgMonths} 個月) - 點擊查看明細`;
-                                }
-                            }
-                        }
-                    },
-                    scales: { y: { beginAtZero: true, ticks: { callback: v => 'HK$ ' + (v / 1000) + 'k' } } } 
-                }
-            });
+            const salesOpt = { 
+                responsive: true, maintainAspectRatio: false,
+                onHover: (e, el, chart) => e.native.target.style.cursor = el.length ? 'pointer' : 'default',
+                onClick: (e, el, chart) => { if (el.length) showSalesDetails(chart.data.labels[el[0].index], el[0].datasetIndex === 0 ? 'NJ' : 'RJ', metricFilter); },
+                plugins: { tooltip: { callbacks: { afterLabel: (c) => {
+                    const b = c.label, isNJ = c.datasetIndex === 0;
+                    const hc = isNJ ? statsByBatch[b].NJ.hc : statsByBatch[b].RJ.hc;
+                    const rc = isNJ ? statsByBatch[b].NJ.records.size : statsByBatch[b].RJ.records.size;
+                    return `(人數: ${hc} 人, 平均上數: ${hc > 0 ? (rc/hc).toFixed(1) : 0} 個月) - 點擊查看明細`;
+                } } } },
+                scales: { y: { beginAtZero: true, ticks: { callback: v => 'HK$ ' + (v/1000) + 'k' } } }
+            };
+            chartSalesIns = new Chart(document.getElementById('chart-sales'), { type: 'bar', data: { labels: batches, datasets: [{ label: `總 ${mLab} (NJ)`, data: batches.map(b => statsByBatch[b].NJ[mKey]), backgroundColor: 'rgba(59, 130, 246, 0.7)' }, { label: `總 ${mLab} (RJ)`, data: batches.map(b => statsByBatch[b].RJ[mKey]), backgroundColor: 'rgba(16, 185, 129, 0.7)' }] }, options: salesOpt });
+            chartAvgSalesIns = new Chart(document.getElementById('chart-avg-sales'), { type: 'bar', data: { labels: batches, datasets: [{ label: `平均月銷售 ${mLab} (NJ)`, data: batches.map(b => statsByBatch[b].NJ.records.size > 0 ? statsByBatch[b].NJ[mKey]/statsByBatch[b].NJ.records.size : 0), backgroundColor: 'rgba(255, 99, 132, 0.7)' }, { label: `平均月銷售 ${mLab} (RJ)`, data: batches.map(b => statsByBatch[b].RJ.records.size > 0 ? statsByBatch[b].RJ[mKey]/statsByBatch[b].RJ.records.size : 0), backgroundColor: 'rgba(255, 159, 64, 0.7)' }] }, options: salesOpt });
         }
 
         function renderAttritionCharts(statsByBatch, tenureBuckets) {
@@ -944,153 +757,62 @@
             if (chartJoinersIns) chartJoinersIns.destroy();
             if (chartRetentionIns) chartRetentionIns.destroy();
             if (chartTenureIns) chartTenureIns.destroy();
-            const ctxJoiners = document.getElementById('chart-joiners').getContext('2d');
-            chartJoinersIns = new Chart(ctxJoiners, {
-                type: 'line',
-                data: {
-                    labels: batches,
-                    datasets: [{
-                        label: '入職總人數 (New Joiners)',
-                        data: batches.map(b => statsByBatch[b].ACTIVE + statsByBatch[b].RESIGNED),
-                        borderColor: 'rgba(79, 70, 229, 1)',
-                        backgroundColor: 'rgba(79, 70, 229, 0.15)',
-                        borderWidth: 3, fill: true, tension: 0.3, pointBackgroundColor: 'rgba(79, 70, 229, 1)', pointRadius: 5, pointHoverRadius: 7
-                    }]
-                },
-                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }, plugins: { legend: { display: false } } }
-            });
-            const ctxRetention = document.getElementById('chart-retention').getContext('2d');
-            chartRetentionIns = new Chart(ctxRetention, {
-                type: 'bar',
-                data: {
-                    labels: batches,
-                    datasets: [
-                        { label: '在職 (Active)', data: batches.map(b => statsByBatch[b].ACTIVE), backgroundColor: 'rgba(52, 211, 153, 0.8)', borderWidth: 1 },
-                        { label: '已離職 (Resigned)', data: batches.map(b => statsByBatch[b].RESIGNED), backgroundColor: 'rgba(244, 63, 94, 0.8)', borderWidth: 1 }
-                    ]
-                },
-                options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } } } }
-            });
-            const ctxTenure = document.getElementById('chart-tenure').getContext('2d');
-            chartTenureIns = new Chart(ctxTenure, {
-                type: 'doughnut',
-                data: {
-                    labels: Object.keys(tenureBuckets),
-                    datasets: [{
-                        data: Object.values(tenureBuckets),
-                        backgroundColor: ['rgba(248, 113, 113, 0.8)', 'rgba(251, 191, 36, 0.8)', 'rgba(96, 165, 250, 0.8)'],
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } },
-                    onHover: (event, chartElement) => {
-                        event.native.target.style.cursor = chartElement[0] ? 'pointer' : 'default';
-                    },
-                    onClick: (event, elements) => {
-                        if (elements.length > 0) {
-                            const index = elements[0].index;
-                            const label = chartTenureIns.data.labels[index];
-                            showTenureDetails(label);
-                        }
-                    }
-                }
-            });
+            chartJoinersIns = new Chart(document.getElementById('chart-joiners'), { type: 'line', data: { labels: batches, datasets: [{ label: '入職總人數', data: batches.map(b => statsByBatch[b].ACTIVE + statsByBatch[b].RESIGNED), borderColor: 'rgba(79, 70, 229, 1)', backgroundColor: 'rgba(79, 70, 229, 0.15)', borderWidth: 3, fill: true, tension: 0.3 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } } });
+            chartRetentionIns = new Chart(document.getElementById('chart-retention'), { type: 'bar', data: { labels: batches, datasets: [{ label: '在職', data: batches.map(b => statsByBatch[b].ACTIVE), backgroundColor: 'rgba(52, 211, 153, 0.8)' }, { label: '已離職', data: batches.map(b => statsByBatch[b].RESIGNED), backgroundColor: 'rgba(244, 63, 94, 0.8)' }] }, options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true } } } });
+            chartTenureIns = new Chart(document.getElementById('chart-tenure'), { type: 'doughnut', data: { labels: Object.keys(tenureBuckets), datasets: [{ data: Object.values(tenureBuckets), backgroundColor: ['rgba(248, 113, 113, 0.8)', 'rgba(251, 191, 36, 0.8)', 'rgba(96, 165, 250, 0.8)'] }] }, options: { responsive: true, maintainAspectRatio: false, onHover: (e, el) => e.native.target.style.cursor = el[0] ? 'pointer' : 'default', onClick: (e, el) => el.length && showTenureDetails(chartTenureIns.data.labels[el[0].index]) } });
         }
 
         function showSalesDetails(clickedBatch, clickedRole, metricFilter) {
             if (!isAuthenticated) return;
-            const sourceFilter = document.getElementById('sales-filter-source').value;
-            const roleFilter = document.getElementById('sales-filter-role').value;
-            const selectedPeriods = getSelectedPeriods('sales');
-            const metricKey = metricFilter === 'ACTUAL' ? 'actual' : 'realized';
+            const mKey = metricFilter === 'ACTUAL' ? 'actual' : 'realized';
             let staffSalesMap = {};
-            for (const [staffId, info] of Object.entries(globalStaffMap)) {
-                if (sourceFilter !== 'ALL' && info.source !== sourceFilter) continue;
-                if (roleFilter !== 'ALL' && info.role !== roleFilter) continue;
-                const batchGroup = getBatchGroup(info);
-                if (selectedPeriods.length > 0 && !selectedPeriods.includes(batchGroup)) continue;
-                if (batchGroup !== clickedBatch) continue;
-                const role = (info.role === 'NJ' || info.role === 'RJ') ? info.role : 'OTHER';
-                if (role !== clickedRole) continue;
-                staffSalesMap[staffId] = { staffId: staffId, name: info.name || '-', batchDate: info.batchDate || '-', amount: 0, months: new Set() };
-            }
-            globalSalesData.forEach(sale => {
-                if (staffSalesMap[sale.staffId]) {
-                    staffSalesMap[sale.staffId].amount += sale[metricKey];
-                    if (sale.month) {
-                        staffSalesMap[sale.staffId].months.add(sale.month);
-                    }
+            for (const [sid, info] of Object.entries(globalStaffMap)) {
+                if (getBatchGroup(info) !== clickedBatch) continue;
+                if ((info.role === 'NJ' || info.role === 'RJ' ? info.role : 'OTHER') !== clickedRole) continue;
+                let rawLast = info.lastDate ? info.lastDate.trim().toUpperCase() : '';
+                const isResigned = rawLast !== '' && rawLast !== '-' && rawLast !== 'N/A' && rawLast !== '#N/A';
+                let tenureText = "在職";
+                if (isResigned) {
+                    let m = calculateTenureMonths(info.joinDate, info.lastDate);
+                    tenureText = m < 3 ? '<3個月' : (m < 6 ? '3-6個月' : '6-12個月');
                 }
-            });
-            let matchedStaff = Object.values(staffSalesMap);
-            matchedStaff.sort((a, b) => b.amount - a.amount);
-            const tbody = document.getElementById('sales-modal-tbody');
-            tbody.innerHTML = '';
-            if (matchedStaff.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-gray-500">此區間沒有找到對應的人員銷售資料。</td></tr>`;
-            } else {
-                matchedStaff.forEach(s => {
-                    const monthsCount = s.months.size;
-                    const avgAmount = monthsCount > 0 ? (s.amount / monthsCount) : 0;
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-indigo-50 transition border-b border-gray-100">
-                            <td class="px-6 py-3">${s.batchDate}</td>
-                            <td class="px-6 py-3 font-semibold text-indigo-600">${s.staffId}</td>
-                            <td class="px-6 py-3 font-medium text-gray-800">${s.name}</td>
-                            <td class="px-6 py-3 text-center text-indigo-600 font-bold">${monthsCount}</td>
-                            <td class="px-6 py-3 text-gray-600 text-right">${formatCurrency(s.amount)}</td>
-                            <td class="px-6 py-3 text-emerald-600 font-bold text-right">${formatCurrency(avgAmount)}</td>
-                        </tr>
-                    `;
-                });
+                staffSalesMap[sid] = { sid, tenureStatus: tenureText, bDate: info.batchDate || '-', amount: 0, months: new Set() };
             }
-            const metricLabel = metricFilter === 'ACTUAL' ? 'Actual Sales' : 'Realized Sales';
-            document.getElementById('sales-modal-title').innerText = `${clickedBatch} 梯次銷售明細 (${clickedRole} 人員 - ${metricLabel})`;
+            globalSalesData.forEach(sale => { if (staffSalesMap[sale.staffId]) { staffSalesMap[sale.staffId].amount += sale[mKey]; if (sale.month) staffSalesMap[sale.staffId].months.add(sale.month); } });
+            let sorted = Object.values(staffSalesMap).sort((a,b) => b.amount - a.amount);
+            const tbody = document.getElementById('sales-modal-tbody');
+            tbody.innerHTML = sorted.length ? sorted.map(s => `
+                <tr class="hover:bg-indigo-50 border-b">
+                    <td class="px-6 py-3">${s.bDate}</td>
+                    <td class="px-6 py-3 font-semibold text-indigo-600">${s.sid}</td>
+                    <td class="px-6 py-3 font-medium ${s.tenureStatus === '在職' ? 'text-emerald-600' : 'text-gray-500'}">${s.tenureStatus}</td>
+                    <td class="px-6 py-3 text-center font-bold">${s.months.size}</td>
+                    <td class="px-6 py-3 text-right">${formatCurrency(s.amount)}</td>
+                    <td class="px-6 py-3 text-emerald-600 font-bold text-right">${formatCurrency(s.months.size > 0 ? s.amount/s.months.size : 0)}</td>
+                </tr>`).join('') : `<tr><td colspan="6" class="px-6 py-8 text-center text-gray-500">此區間沒有找到對應資料。</td></tr>`;
+            document.getElementById('sales-modal-title').innerText = `${clickedBatch} 梯次銷售明細 (${clickedRole} 人員)`;
             document.getElementById('sales-modal').classList.remove('hidden');
         }
 
         function closeSalesModal() { document.getElementById('sales-modal').classList.add('hidden'); }
-
         function showTenureDetails(bucketLabel) {
             if (!isAuthenticated) return;
-            const sourceFilter = document.getElementById('attrition-filter-source').value;
-            const roleFilter = document.getElementById('attrition-filter-role').value;
-            const selectedPeriods = getSelectedPeriods('attrition');
-            let matchedStaff = [];
-            for (const [staffId, info] of Object.entries(globalStaffMap)) {
-                if (sourceFilter !== 'ALL' && info.source !== sourceFilter) continue;
-                if (roleFilter !== 'ALL' && info.role !== roleFilter) continue;
-                const batchGroup = getBatchGroup(info);
-                if (selectedPeriods.length > 0 && !selectedPeriods.includes(batchGroup)) continue;
-                let months = calculateTenureMonths(info.joinDate, info.lastDate);
-                if (months < 0) continue;
-                let matchesBucket = false;
-                if (bucketLabel === '<3個月' && months < 3) matchesBucket = true;
-                else if (bucketLabel === '3-6個月' && months >= 3 && months < 6) matchesBucket = true;
-                else if (bucketLabel === '6-12個月' && months >= 6) matchesBucket = true;
-                if (matchesBucket) {
-                    matchedStaff.push({ batchDate: info.batchDate || '-', staffId: staffId, name: info.name || '-', dept: info.dept || '-' });
+            let matched = [];
+            for (const [sid, info] of Object.entries(globalStaffMap)) {
+                let m = calculateTenureMonths(info.joinDate, info.lastDate);
+                if (m < 0) continue;
+                if ((bucketLabel === '<3個月' && m < 3) || (bucketLabel === '3-6個月' && m >= 3 && m < 6) || (bucketLabel === '6-12個月' && m >= 6)) {
+                    matched.push({ bDate: info.batchDate || '-', sid, dept: info.dept || '-' });
                 }
             }
             const tbody = document.getElementById('tenure-modal-tbody');
-            tbody.innerHTML = '';
-            if (matchedStaff.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4" class="px-6 py-8 text-center text-gray-500">此區間沒有符合條件的員工資料。</td></tr>`;
-            } else {
-                matchedStaff.sort((a, b) => a.batchDate.localeCompare(b.batchDate));
-                matchedStaff.forEach(s => {
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-indigo-50 transition border-b border-gray-100">
-                            <td class="px-6 py-3">${s.batchDate}</td>
-                            <td class="px-6 py-3 font-semibold text-indigo-600">${s.staffId}</td>
-                            <td class="px-6 py-3 font-medium text-gray-800">${s.name}</td>
-                            <td class="px-6 py-3 text-gray-600">${s.dept}</td>
-                        </tr>
-                    `;
-                });
-            }
-            document.getElementById('tenure-modal-title').innerText = `在職時間名單：${bucketLabel} (共 ${matchedStaff.length} 人)`;
+            tbody.innerHTML = matched.length ? matched.sort((a,b)=>a.bDate.localeCompare(b.bDate)).map(s => `
+                <tr class="hover:bg-indigo-50 border-b">
+                    <td class="px-6 py-3">${s.bDate}</td>
+                    <td class="px-6 py-3 font-semibold text-indigo-600">${s.sid}</td>
+                    <td class="px-6 py-3 text-gray-600">${s.dept}</td>
+                </tr>`).join('') : '<tr><td colspan="3" class="px-6 py-8 text-center text-gray-500">沒有符合條件資料。</td></tr>';
+            document.getElementById('tenure-modal-title').innerText = `在職時間名單：${bucketLabel}`;
             document.getElementById('tenure-modal').classList.remove('hidden');
         }
 
@@ -1098,79 +820,44 @@
 
         async function processUploadedFiles() {
             if (!isAuthenticated) return;
-            const file1 = document.getElementById('file-sheet1').files[0];
-            const file2 = document.getElementById('file-sheet2').files[0];
-            const statusDiv = document.getElementById('upload-status');
-            if (!file1 || !file2) { statusDiv.innerText = "請同時上傳 Sheet 1 和 Sheet 2 的 CSV 檔案！"; return; }
-            statusDiv.innerText = "資料處理中...";
+            const f1 = document.getElementById('file-sheet1').files[0], f2 = document.getElementById('file-sheet2').files[0];
+            if (!f1 || !f2) { document.getElementById('upload-status').innerText = "請上傳檔案！"; return; }
             try {
-                const data1 = await new Promise((resolve, reject) => { Papa.parse(file1, { complete: res => resolve(res.data), error: err => reject(err) }); });
-                const data2 = await new Promise((resolve, reject) => { Papa.parse(file2, { complete: res => resolve(res.data), error: err => reject(err) }); });
+                const d1 = await new Promise(r => Papa.parse(f1, { complete: res => r(res.data) }));
+                const d2 = await new Promise(r => Papa.parse(f2, { complete: res => r(res.data) }));
                 globalStaffMap = {}; globalSalesData = [];
-                for (let i = 1; i < data1.length; i++) {
-                    const row = data1[i];
-                    const staffId = row[S1_STAFF_ID] ? row[S1_STAFF_ID].toString().trim() : null;
-                    if (staffId) {
-                        globalStaffMap[staffId] = { batchDate: row[S1_BATCH_DATE]?.trim(), batch: row[S1_BATCH]?.trim(), name: row[S1_NAME]?.trim(), dept: row[S1_DEPT]?.trim(), source: row[S1_SOURCE]?.trim(), role: row[S1_ROLE]?.trim().toUpperCase(), joinDate: row[S1_JOIN_DATE]?.trim(), lastDate: row[S1_LAST_DATE]?.trim(), asDate: row[S1_AS_DATE]?.trim() };
+                for (let i = 1; i < d1.length; i++) {
+                    const r = d1[i]; if (r[S1_STAFF_ID]) {
+                        globalStaffMap[r[S1_STAFF_ID].trim()] = { batchDate: r[S1_BATCH_DATE]?.trim(), batch: r[S1_BATCH]?.trim(), name: r[S1_NAME]?.trim(), dept: r[S1_DEPT]?.trim(), source: r[S1_SOURCE]?.trim(), role: r[S1_ROLE]?.trim().toUpperCase(), joinDate: r[S1_JOIN_DATE]?.trim(), lastDate: r[S1_LAST_DATE]?.trim(), asDate: r[S1_AS_DATE]?.trim() };
                     }
                 }
-                for (let i = 1; i < data2.length; i++) {
-                    const row = data2[i];
-                    const staffId = row[S2_STAFF_ID] ? row[S2_STAFF_ID].toString().trim() : null;
-                    if (staffId) {
-                        globalSalesData.push({ month: row[S2_MONTH]?.trim(), staffId: staffId, actual: cleanNumber(row[S2_ACTUAL]), realized: cleanNumber(row[S2_REALIZED]) });
-                    }
+                for (let i = 1; i < d2.length; i++) {
+                    const r = d2[i]; if (r[S2_STAFF_ID]) globalSalesData.push({ month: r[S2_MONTH]?.trim(), staffId: r[S2_STAFF_ID].trim(), actual: cleanNumber(r[S2_ACTUAL]), realized: cleanNumber(r[S2_REALIZED]) });
                 }
-                statusDiv.innerHTML = `<span class="text-green-600">處理成功！已載入 ${Object.keys(globalStaffMap).length} 名員工。</span>`;
-                populatePeriodFilters(); setTimeout(() => { switchTab('dashboard'); updateDashboard(); }, 1000);
-            } catch (err) { statusDiv.innerHTML = "<span class='text-red-600'>解析檔案發生錯誤。</span>"; }
+                populatePeriodFilters(); updateDashboard(); switchTab('dashboard');
+            } catch (err) { console.error(err); }
         }
 
         async function fetchFromAPI() {
             if (!isAuthenticated) return;
-            const apiUrl = document.getElementById('api-url').value.trim();
-            const statusDiv = document.getElementById('upload-status');
-            if (!apiUrl) { statusDiv.innerHTML = "<span class='text-red-600'>請先輸入 Apps Script 網址！</span>"; return; }
+            const url = document.getElementById('api-url').value.trim();
+            if (!url) return;
             try {
-                statusDiv.innerHTML = "<i class='fa-solid fa-spinner fa-spin mr-2'></i>正在從 Google Sheets 獲取資料，請稍候...";
-                const response = await fetch(apiUrl);
-                const data = await response.json();
+                const res = await fetch(url); const d = await res.json();
                 globalStaffMap = {}; globalSalesData = [];
-                for (let i = 1; i < data.sheet1.length; i++) {
-                    const row = data.sheet1[i];
-                    const staffId = row[S1_STAFF_ID] ? row[S1_STAFF_ID].toString().trim() : null;
-                    if (staffId) {
-                        globalStaffMap[staffId] = { batchDate: row[S1_BATCH_DATE]?.trim(), batch: row[S1_BATCH]?.trim(), name: row[S1_NAME]?.trim(), dept: row[S1_DEPT]?.trim(), source: row[S1_SOURCE]?.trim(), role: row[S1_ROLE]?.trim().toUpperCase(), joinDate: row[S1_JOIN_DATE]?.trim(), lastDate: row[S1_LAST_DATE]?.trim(), asDate: row[S1_AS_DATE]?.trim() };
-                    }
-                }
-                for (let i = 1; i < data.sheet2.length; i++) {
-                    const row = data.sheet2[i];
-                    const staffId = row[S2_STAFF_ID] ? row[S2_STAFF_ID].toString().trim() : null;
-                    if (staffId) {
-                        globalSalesData.push({ month: row[S2_MONTH]?.trim(), staffId: staffId, actual: cleanNumber(row[S2_ACTUAL]), realized: cleanNumber(row[S2_REALIZED]) });
-                    }
-                }
-                statusDiv.innerHTML = `<span class="text-green-600 font-bold"><i class="fa-solid fa-check mr-1"></i>API 同步成功！載入了 ${Object.keys(globalStaffMap).length} 名員工。</span>`;
-                populatePeriodFilters(); setTimeout(() => { switchTab('dashboard'); updateDashboard(); }, 1000);
-            } catch (err) { statusDiv.innerHTML = "<span class='text-red-600'>無法獲取 API 資料。</span>"; }
+                d.sheet1.slice(1).forEach(r => { if(r[S1_STAFF_ID]) globalStaffMap[r[S1_STAFF_ID].trim()] = { batchDate: r[S1_BATCH_DATE]?.trim(), batch: r[S1_BATCH]?.trim(), name: r[S1_NAME]?.trim(), dept: r[S1_DEPT]?.trim(), source: r[S1_SOURCE]?.trim(), role: r[S1_ROLE]?.trim().toUpperCase(), joinDate: r[S1_JOIN_DATE]?.trim(), lastDate: r[S1_LAST_DATE]?.trim(), asDate: r[S1_AS_DATE]?.trim() }; });
+                d.sheet2.slice(1).forEach(r => { if(r[S2_STAFF_ID]) globalSalesData.push({ month: r[S2_MONTH]?.trim(), staffId: r[S2_STAFF_ID].trim(), actual: cleanNumber(r[S2_ACTUAL]), realized: cleanNumber(r[S2_REALIZED]) }); });
+                populatePeriodFilters(); updateDashboard(); switchTab('dashboard');
+            } catch (err) { console.error(err); }
         }
 
         function loadMockData() {
             if (!isAuthenticated) return;
             globalStaffMap = {
-                'S011': { asDate: '10-2025', batchDate: '2025-10-01', name: '陳大文', dept: 'Team Alpha', batch: '10A', source: 'HR', role: 'NJ', joinDate: '2025-10-01', lastDate: '' },
-                'S012': { asDate: '11-2025', batchDate: '2025-11-15', name: '李小玲', dept: 'Team Beta', batch: '11B', source: 'Ops', role: 'RJ', joinDate: '2025-11-15', lastDate: '' }, 
-                'S014': { asDate: '11-2025', batchDate: '2025-11-20', name: '張偉強', dept: 'Team Alpha', batch: '11C', source: 'HR', role: 'NJ', joinDate: '2025-11-20', lastDate: '2026-03-01' }, 
-                'S001': { asDate: '1-2026', batchDate: '2026-01-01', name: '林嘉欣', dept: 'Team Alpha', batch: '1A', source: 'HR', role: 'NJ', joinDate: '2026-01-01', lastDate: '-' }
+                'S011': { asDate: '10-2025', batchDate: '2025-10-01', name: 'MOCK1', dept: 'Team A', batch: '10A', source: 'HR', role: 'NJ', joinDate: '2025-10-01', lastDate: '' },
+                'S012': { asDate: '11-2025', batchDate: '2025-11-15', name: 'MOCK2', dept: 'Team B', batch: '11B', source: 'Ops', role: 'RJ', joinDate: '2025-11-15', lastDate: '2026-01-01' }
             };
-            globalSalesData = [
-                { month: '2025-10', staffId: 'S011', actual: 50000, realized: 45000 },
-                { month: '2025-11', staffId: 'S011', actual: 80000, realized: 75000 },
-                { month: '2025-11', staffId: 'S012', actual: 60000, realized: 50000 },
-                { month: '2026-01', staffId: 'S001', actual: 150000, realized: 135000 }
-            ];
-            const statusDiv = document.getElementById('upload-status');
-            statusDiv.innerHTML = `<span class="text-green-600">已成功載入模擬數據！</span>`;
+            globalSalesData = [{ month: '2025-11', staffId: 'S011', actual: 50000, realized: 45000 }];
             populatePeriodFilters(); updateDashboard();
         }
     </script>
