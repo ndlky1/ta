@@ -543,20 +543,36 @@
 
         function renderSalesCharts(sbb, mf) {
             const labels = Object.keys(sbb).sort();
+            const onClickHandler = (e, el) => {
+                if (el.length) {
+                    const batchName = labels[el[0].index];
+                    const roleType = el[0].datasetIndex === 0 ? 'NJ' : 'RJ';
+                    showDetailList(batchName, 'Batch', 'sales', roleType, batchName);
+                }
+            };
+            const onHoverHandler = (e, el) => {
+                e.native.target.style.cursor = el.length ? 'pointer' : 'default';
+            };
+
             if (charts.hc) charts.hc.destroy();
             charts.hc = new Chart(document.getElementById('chart-sales-headcount'), {
                 type: 'bar', data: { labels, datasets: [{ label:'NJ', data:labels.map(l=>sbb[l].NJ.hc), backgroundColor:'#4F46E5'},{ label:'RJ', data:labels.map(l=>sbb[l].RJ.hc), backgroundColor:'#10B981'}] },
-                options: { maintainAspectRatio:false, plugins:{ title:{ display:true, text:'各梯次人數分佈'}}, onClick:(e, el)=>{ if(el.length) showDetailList(labels[el[0].index], 'Batch', 'sales', el[0].datasetIndex===0?'NJ':'RJ', labels[el[0].index]);}}
+                options: { maintainAspectRatio:false, plugins:{ title:{ display:true, text:'各梯次人數分佈'}}, 
+                onClick: onClickHandler, onHover: onHoverHandler }
             });
+
             if (charts.sales) charts.sales.destroy();
             charts.sales = new Chart(document.getElementById('chart-sales'), {
                 type: 'bar', data: { labels, datasets: [{ label:'NJ 總銷售', data:labels.map(l=>sbb[l].NJ.val), backgroundColor:'rgba(79, 70, 229, 0.7)'},{ label:'RJ 總銷售', data:labels.map(l=>sbb[l].RJ.val), backgroundColor:'rgba(16, 185, 129, 0.7)'}] },
-                options: { maintainAspectRatio:false, plugins:{ title:{ display:true, text:'各梯次總銷售表現'}}}
+                options: { maintainAspectRatio:false, plugins:{ title:{ display:true, text:'各梯次總銷售表現'}},
+                onClick: onClickHandler, onHover: onHoverHandler }
             });
+
             if (charts.avg) charts.avg.destroy();
             charts.avg = new Chart(document.getElementById('chart-avg-sales'), {
                 type: 'bar', data: { labels, datasets: [{ label:'NJ 人均', data:labels.map(l=>sbb[l].NJ.rec.size?sbb[l].NJ.val/sbb[l].NJ.rec.size:0), backgroundColor:'#F43F5E'},{ label:'RJ 人均', data:labels.map(l=>sbb[l].RJ.rec.size?sbb[l].RJ.val/sbb[l].RJ.rec.size:0), backgroundColor:'#FBBF24'}] },
-                options: { maintainAspectRatio:false, plugins:{ title:{ display:true, text:'各梯次人均月銷售'}}}
+                options: { maintainAspectRatio:false, plugins:{ title:{ display:true, text:'各梯次人均月銷售'}},
+                onClick: onClickHandler, onHover: onHoverHandler }
             });
         }
 
