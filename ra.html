@@ -428,7 +428,7 @@
         function updateAttritionData() {
             const sf = document.getElementById('attrition-filter-source').value, rf = document.getElementById('attrition-filter-role').value;
             const sp = Array.from(document.querySelectorAll('.attrition-period-checkbox:checked')).map(c => c.value);
-            let th = 0, ta = 0, tr = 0, sbb = {}, tb = { '<3個月': 0, '3-6個月': 0, '6-12個月': 0, '1年及以上': 0 };
+            let th = 0, ta = 0, tr = 0, sbb = {}, tb = { '<1個月': 0, '1-3個月': 0, '3-6個月': 0, '6-12個月': 0, '1年及以上': 0 };
 
             for (const [sid, info] of Object.entries(globalStaffMap)) {
                 if ((sf !== 'ALL' && info.source !== sf) || (rf !== 'ALL' && info.role !== rf)) continue;
@@ -442,7 +442,8 @@
                 
                 let m = calculateTenureMonths(info.joinDate, info.lastDate);
                 if (m >= 0) {
-                    if (m < 3) tb['<3個月']++;
+                    if (m < 1) tb['<1個月']++;
+                    else if (m < 3) tb['1-3個月']++;
                     else if (m < 6) tb['3-6個月']++;
                     else if (m < 12) tb['6-12個月']++;
                     else tb['1年及以上']++;
@@ -519,7 +520,7 @@
 
                 const m = calculateTenureMonths(info.joinDate, info.lastDate);
                 const isR = info.lastDate && !['', '-', 'N/A', '#N/A'].includes(info.lastDate.toString().trim());
-                let status = isR ? (m < 3 ? "離職 (<3個月)" : (m < 6 ? "離職 (3-6個月)" : "離職 (>6個月)")) : "在職";
+                let status = isR ? (m < 1 ? "離職 (<1個月)" : (m < 3 ? "離職 (1-3個月)" : (m < 6 ? "離職 (3-6個月)" : "離職 (>6個月)"))) : "在職";
 
                 ssm[sid] = { sid, name: info.name || '-', bDate: info.batchDate || '-', status, isResigned: isR, amount: 0, rec: new Set() };
             }
@@ -585,7 +586,7 @@
             });
             if (charts.ten) charts.ten.destroy();
             charts.ten = new Chart(document.getElementById('chart-tenure'), {
-                type:'doughnut', data: { labels: Object.keys(tb), datasets: [{ data: Object.values(tb), backgroundColor:['#F43F5E','#FBBF24','#60A5FA','#34D399']}] },
+                type:'doughnut', data: { labels: Object.keys(tb), datasets: [{ data: Object.values(tb), backgroundColor:['#991B1B', '#F43F5E','#FBBF24','#60A5FA','#34D399']}] },
                 options: { maintainAspectRatio:false }
             });
             if (charts.join) charts.join.destroy();
