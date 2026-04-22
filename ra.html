@@ -33,6 +33,18 @@
         .dropdown-panel { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; }
         .loading-spinner { animation: spin 1s linear infinite; }
         @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        
+        /* 摺疊行樣式 */
+        .brand-group-row { cursor: pointer; background-color: #eef2ff; transition: background-color 0.2s; font-weight: bold; }
+        .brand-group-row:hover { background-color: #e0e7ff; }
+        .floor-group-row { cursor: pointer; background-color: #f8fafc; transition: background-color 0.2s; }
+        .floor-group-row:hover { background-color: #f1f5f9; }
+        .sub-team-row { background-color: #ffffff; }
+        
+        .chevron-icon { transition: transform 0.2s; font-size: 0.75rem; color: #6366f1; }
+        .chevron-expanded { transform: rotate(180deg); }
+        .indent-1 { padding-left: 2.5rem !important; }
+        .indent-2 { padding-left: 4.5rem !important; }
     </style>
 </head>
 <body class="text-slate-800 antialiased">
@@ -58,14 +70,17 @@
     <div id="app-container" class="hidden">
         <nav class="bg-indigo-600 text-white shadow-lg">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                <div class="flex justify-between h-16">
+                <div class="flex items-center h-16 relative">
                     <div class="flex items-center">
-                        <i class="fa-solid fa-database text-2xl mr-3"></i>
-                        <span class="font-bold text-xl tracking-wider">招募與績效同步分析平台</span>
+                        <i class="fa-solid fa-database text-xl mr-2"></i>
                     </div>
-                    <div class="flex items-center space-x-4">
+                    <!-- 置中導航標題 -->
+                    <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                        <span class="font-bold text-xl tracking-widest pointer-events-auto uppercase">招募與績效分析儀表板</span>
+                    </div>
+                    <div class="ml-auto flex items-center space-x-4">
                         <button onclick="switchTab('dashboard')" id="btn-dashboard" class="px-3 py-2 rounded-md text-sm font-medium bg-indigo-700">儀表板</button>
-                        <button onclick="switchTab('data-source')" id="btn-data" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-500 transition">數據源設定</button>
+                        <button onclick="switchTab('data-source')" id="btn-data" class="px-3 py-2 rounded-md text-sm font-medium hover:bg-indigo-500 transition">數據源</button>
                     </div>
                 </div>
             </div>
@@ -74,171 +89,178 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             <!-- Tab: Data Source -->
             <div id="tab-data-source" class="hide">
-                <div class="glass-card max-w-3xl mx-auto text-center">
+                <div class="glass-card max-w-4xl mx-auto text-center">
                     <h2 class="text-2xl font-bold mb-6 text-indigo-900 border-b pb-2">數據連接資訊</h2>
                     <div class="mb-8 p-6 bg-indigo-50 rounded-lg border border-indigo-100 text-left">
                         <h3 class="font-bold text-lg mb-2 text-indigo-900">目前同步網址</h3>
                         <div class="flex flex-col sm:flex-row gap-3">
-                            <input type="text" id="api-url" value="https://script.google.com/macros/s/AKfycbxJIYgAcfibE06ACZCS-EsbNA9jr7xzcQOdwGaDpPV8sIdcVnSzEtdomOREE97cCOalZA/exec" class="flex-1 p-3 rounded border border-gray-300 outline-none text-sm bg-gray-100" readonly>
+                            <input type="text" id="api-url" value="https://script.google.com/macros/s/AKfycbxAjDjgyeuNfNQpaYb0JhGEWv9FfN-3joFIt-V0eAjo70pHIvQhfOWpolWGmVTZzVdahQ/exec" class="flex-1 p-3 rounded border border-gray-300 outline-none text-sm bg-white focus:ring-2 focus:ring-indigo-500 shadow-sm">
                             <button onclick="fetchFromAPI()" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded shadow flex items-center justify-center">
-                                <i class="fa-solid fa-sync mr-2"></i>強制同步最新數據
+                                <i class="fa-solid fa-sync mr-2"></i>強制刷新同步
                             </button>
                         </div>
                     </div>
-                    <p class="text-xs text-gray-400">※ 本系統會自動過濾 Google Sheets 內的空行，確保數據與 Excel 實際行數一致。</p>
+                    <div class="text-xs text-gray-500 text-left space-y-2">
+                        <p class="font-bold text-indigo-700 underline">同步提示：</p>
+                        <p>1. 如果出現「同步失敗」，請確認 Google 試算表的 Apps Script 部署設定是否為「任何人 (Anyone)」。</p>
+                        <p>2. 數據抓取時會自動過濾主檔中的空行，確保人數統計精確。</p>
+                        <p>3. 系統會自動根據樓層字首 (R, D, E) 進行品牌歸類，修正原始數據中部門不一致的問題。</p>
+                    </div>
                 </div>
             </div>
 
             <!-- Tab: Dashboard -->
             <div id="tab-dashboard">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-bold text-indigo-900 border-b-2 border-indigo-100 pb-1">銷售與招募總覽</h2>
-                    <div class="text-sm font-medium" id="data-status">
-                        <i class="fa-solid fa-spinner loading-spinner mr-2"></i>同步中...
+                <!-- 標題與狀態置中調整 -->
+                <div class="flex flex-col items-center mb-8 text-center">
+                    <h2 class="text-2xl font-bold text-indigo-900 border-b-4 border-indigo-100 pb-2 mb-2 px-8">銷售與招募總覽分析</h2>
+                    <div class="text-sm font-semibold tracking-wide py-1 px-4 rounded-full bg-white shadow-sm inline-flex items-center" id="data-status">
+                        <i class="fa-solid fa-spinner loading-spinner mr-2 text-indigo-500"></i>正在連接數據源...
                     </div>
                 </div>
 
                 <!-- KPI Cards -->
-                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-                    <div class="glass-card text-center">
-                        <p class="text-sm text-gray-500 mb-1">符合條件人數 (HC)</p>
-                        <p class="text-2xl font-bold text-gray-800" id="kpi-headcount">0</p>
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+                    <div class="glass-card text-center border-t-4 border-indigo-300">
+                        <p class="text-xs text-gray-500 mb-1 uppercase tracking-wider">符合條件人數 (HC)</p>
+                        <p class="text-3xl font-bold text-gray-800" id="kpi-headcount">0</p>
                     </div>
-                    <div class="glass-card text-center text-indigo-600">
-                        <p class="text-sm text-gray-500 mb-1">總實際銷售 (Actual)</p>
-                        <p class="text-2xl font-bold" id="kpi-actual">HK$ 0</p>
+                    <div class="glass-card text-center border-t-4 border-indigo-500">
+                        <p class="text-xs text-indigo-400 mb-1 uppercase tracking-wider">總實際銷售 (Actual)</p>
+                        <p class="text-3xl font-bold text-indigo-600" id="kpi-actual">HK$ 0</p>
                     </div>
-                    <div class="glass-card text-center text-emerald-600">
-                        <p class="text-sm text-gray-500 mb-1">總已實現銷售 (Realized)</p>
-                        <p class="text-2xl font-bold" id="kpi-realized">HK$ 0</p>
+                    <div class="glass-card text-center border-t-4 border-emerald-500">
+                        <p class="text-xs text-emerald-400 mb-1 uppercase tracking-wider">總已實現銷售 (Realized)</p>
+                        <p class="text-3xl font-bold text-emerald-600" id="kpi-realized">HK$ 0</p>
                     </div>
-                    <div class="glass-card text-center text-rose-600">
-                        <p class="text-sm text-gray-500 mb-1">總成本 (Cost)</p>
-                        <p class="text-2xl font-bold" id="kpi-cost">HK$ 0</p>
+                    <div class="glass-card text-center border-t-4 border-rose-500">
+                        <p class="text-xs text-rose-400 mb-1 uppercase tracking-wider">總成本 (Cost)</p>
+                        <p class="text-3xl font-bold text-rose-600" id="kpi-cost">HK$ 0</p>
                     </div>
                 </div>
 
-                <!-- 銷售篩選 -->
-                <div class="glass-card mb-6 flex flex-wrap items-center gap-4 border-l-4 border-indigo-500">
+                <!-- 銷售篩選器 (置中) -->
+                <div class="glass-card mb-8 flex flex-wrap items-center justify-center gap-6 border-y border-indigo-100 bg-indigo-50/30">
                     <div class="flex items-center gap-2">
-                        <label class="font-bold text-sm">招募來源：</label>
-                        <select id="sales-filter-source" onchange="updateSalesData()" class="border rounded p-1 text-sm outline-none">
+                        <label class="font-bold text-sm text-indigo-900">招募來源：</label>
+                        <select id="sales-filter-source" onchange="updateSalesData()" class="border rounded-md px-2 py-1 text-sm outline-none shadow-sm focus:ring-2 focus:ring-indigo-400">
                             <option value="ALL">全部 (All)</option><option value="HR">HR</option><option value="Ops">Ops</option>
                         </select>
                     </div>
                     <div class="flex items-center gap-2">
-                        <label class="font-bold text-sm">人員類型：</label>
-                        <select id="sales-filter-role" onchange="updateSalesData()" class="border rounded p-1 text-sm outline-none">
+                        <label class="font-bold text-sm text-indigo-900">人員類型：</label>
+                        <select id="sales-filter-role" onchange="updateSalesData()" class="border rounded-md px-2 py-1 text-sm outline-none shadow-sm focus:ring-2 focus:ring-indigo-400">
                             <option value="ALL">全部 (All)</option><option value="NJ">NJ</option><option value="RJ">RJ</option>
                         </select>
                     </div>
                     <div class="flex items-center gap-2">
-                        <label class="font-bold text-sm">分析指標：</label>
-                        <select id="sales-filter-metric" onchange="updateSalesData()" class="border rounded p-1 text-sm outline-none">
+                        <label class="font-bold text-sm text-indigo-900">顯示數據：</label>
+                        <select id="sales-filter-metric" onchange="updateSalesData()" class="border rounded-md px-2 py-1 text-sm outline-none shadow-sm focus:ring-2 focus:ring-indigo-400">
                             <option value="ACTUAL">分析 Actual Sales</option><option value="REALIZED">分析 Realized Sales</option>
                         </select>
                     </div>
                     <div class="flex items-center gap-2 custom-dropdown relative">
-                        <label class="font-bold text-sm">梯次年月：</label>
+                        <label class="font-bold text-sm text-indigo-900">梯次年月：</label>
                         <div class="relative">
-                            <button type="button" onclick="toggleDropdown('sales-period-panel')" class="border rounded p-1 text-sm bg-white min-w-[120px] flex justify-between items-center">
-                                <span id="sales-period-text">全部梯次</span><i class="fa-solid fa-chevron-down ml-2 text-xs"></i>
+                            <button type="button" onclick="toggleDropdown('sales-period-panel')" class="border rounded-md px-3 py-1 text-sm bg-white min-w-[140px] flex justify-between items-center shadow-sm">
+                                <span id="sales-period-text">全部梯次</span><i class="fa-solid fa-calendar-days ml-2 text-indigo-300"></i>
                             </button>
-                            <div id="sales-period-panel" class="dropdown-panel hidden absolute z-50 w-56 bg-white border rounded shadow-xl mt-1 max-h-60 overflow-y-auto left-0 text-sm"></div>
+                            <div id="sales-period-panel" class="dropdown-panel hidden absolute z-50 w-64 bg-white border rounded shadow-xl mt-2 max-h-60 overflow-y-auto left-0 text-sm"></div>
                         </div>
                     </div>
                 </div>
 
-                <!-- 圖表區 -->
+                <!-- 圖表展示 -->
                 <div class="glass-card mb-6 h-64"><canvas id="chart-sales-headcount"></canvas></div>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
                     <div class="glass-card h-80"><canvas id="chart-sales"></canvas></div>
                     <div class="glass-card h-80"><canvas id="chart-avg-sales"></canvas></div>
                 </div>
 
-                <!-- 留任與離職 -->
-                <h2 class="text-xl font-bold text-rose-800 mb-4 border-b-2 border-rose-100 pb-2">員工留任與離職分析</h2>
-                <div class="glass-card mb-6 flex flex-wrap items-center gap-4 border-l-4 border-rose-400">
-                    <div class="flex items-center gap-2 text-sm">
-                        <label class="font-bold">招募來源：</label>
-                        <select id="attrition-filter-source" onchange="updateAttritionData()" class="border rounded p-1 outline-none">
-                            <option value="ALL">全部 (All)</option><option value="HR">HR</option><option value="Ops">Ops</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center gap-2 text-sm">
-                        <label class="font-bold">人員類型：</label>
-                        <select id="attrition-filter-role" onchange="updateAttritionData()" class="border rounded p-1 outline-none">
-                            <option value="ALL">全部 (All)</option><option value="NJ">NJ</option><option value="RJ">RJ</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center gap-2 custom-dropdown relative text-sm">
-                        <label class="font-bold">梯次年月：</label>
-                        <div class="relative">
-                            <button type="button" onclick="toggleDropdown('attrition-period-panel')" class="border rounded p-1 bg-white min-w-[120px] flex justify-between items-center">
-                                <span id="attrition-period-text">全部梯次</span><i class="fa-solid fa-chevron-down ml-2 text-xs"></i>
-                            </button>
-                            <div id="attrition-period-panel" class="dropdown-panel hidden absolute z-50 w-56 bg-white border rounded shadow-xl mt-1 max-h-60 overflow-y-auto left-0"></div>
+                <!-- 留任分析標題 (置中) -->
+                <div class="flex flex-col items-center mb-6">
+                    <h2 class="text-2xl font-bold text-rose-800 border-b-4 border-rose-100 pb-2 mb-4 px-8 uppercase">員工留任與離職分析</h2>
+                    <div class="glass-card w-full flex flex-wrap items-center justify-center gap-6 border-l-4 border-rose-400 bg-rose-50/20">
+                        <div class="flex items-center gap-2 text-sm">
+                            <label class="font-bold text-rose-900">招募來源：</label>
+                            <select id="attrition-filter-source" onchange="updateAttritionData()" class="border rounded px-2 py-1 outline-none shadow-sm focus:ring-2 focus:ring-rose-400">
+                                <option value="ALL">全部 (All)</option><option value="HR">HR</option><option value="Ops">Ops</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm">
+                            <label class="font-bold text-rose-900">人員類型：</label>
+                            <select id="attrition-filter-role" onchange="updateAttritionData()" class="border rounded px-2 py-1 outline-none shadow-sm focus:ring-2 focus:ring-rose-400">
+                                <option value="ALL">全部 (All)</option><option value="NJ">NJ</option><option value="RJ">RJ</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2 custom-dropdown relative text-sm">
+                            <label class="font-bold text-rose-900">梯次年月：</label>
+                            <div class="relative">
+                                <button type="button" onclick="toggleDropdown('attrition-period-panel')" class="border rounded px-3 py-1 bg-white min-w-[140px] flex justify-between items-center shadow-sm">
+                                    <span id="attrition-period-text">全部梯次</span><i class="fa-solid fa-calendar-alt ml-2 text-rose-300"></i>
+                                </button>
+                                <div id="attrition-period-panel" class="dropdown-panel hidden absolute z-50 w-64 bg-white border rounded shadow-xl mt-2 max-h-60 overflow-y-auto left-0"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
-                    <div class="glass-card text-center text-emerald-600">
-                        <p class="text-sm text-gray-500 mb-1">目前在職人數</p>
-                        <p class="text-3xl font-bold" id="kpi-active">0</p>
+                <!-- 留任 KPI -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+                    <div class="glass-card text-center border-b-4 border-emerald-500">
+                        <p class="text-xs text-gray-500 mb-1 uppercase">目前在職人數</p>
+                        <p class="text-4xl font-bold text-emerald-600" id="kpi-active">0</p>
                     </div>
-                    <div class="glass-card text-center text-rose-600">
-                        <p class="text-sm text-gray-500 mb-1">總離職人數</p>
-                        <p class="text-3xl font-bold" id="kpi-resigned">0</p>
+                    <div class="glass-card text-center border-b-4 border-rose-500">
+                        <p class="text-xs text-gray-500 mb-1 uppercase">總離職人數</p>
+                        <p class="text-4xl font-bold text-rose-600" id="kpi-resigned">0</p>
                     </div>
-                    <div class="glass-card text-center text-amber-600">
-                        <p class="text-sm text-gray-500 mb-1">整體留任率</p>
-                        <p class="text-3xl font-bold" id="kpi-retention-rate">0%</p>
+                    <div class="glass-card text-center border-b-4 border-amber-500">
+                        <p class="text-xs text-gray-500 mb-1 uppercase">整體留任率</p>
+                        <p class="text-4xl font-bold text-amber-600" id="kpi-retention-rate">0%</p>
                     </div>
                 </div>
 
                 <div class="glass-card mb-6 h-64"><canvas id="chart-joiners"></canvas></div>
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-10">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-12">
                     <div class="glass-card h-80"><canvas id="chart-retention"></canvas></div>
                     <div class="glass-card h-80"><canvas id="chart-tenure"></canvas></div>
                 </div>
 
-                <!-- Ops 分析 -->
-                <h2 class="text-xl font-bold text-emerald-800 mb-4 border-b-2 border-emerald-100 pb-2">Ops 招募渠道分析 (By Brand & Floor)</h2>
-                <div class="glass-card mb-6 flex flex-wrap items-center gap-4 border-l-4 border-emerald-500">
-                    <div class="flex items-center gap-2 text-sm">
-                        <label class="font-bold">人員類型：</label>
-                        <select id="ops-filter-role" onchange="updateOpsAnalysis()" class="border rounded p-1 outline-none">
-                            <option value="ALL">全部 (All)</option><option value="NJ">NJ</option><option value="RJ">RJ</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center gap-2 custom-dropdown relative text-sm">
-                        <label class="font-bold">梯次年月：</label>
-                        <div class="relative">
-                            <button type="button" onclick="toggleDropdown('ops-period-panel')" class="border rounded p-1 bg-white min-w-[120px] flex justify-between items-center">
-                                <span id="ops-period-text">全部梯次</span><i class="fa-solid fa-chevron-down ml-2 text-xs"></i>
-                            </button>
-                            <div id="ops-period-panel" class="dropdown-panel hidden absolute z-50 w-56 bg-white border rounded shadow-xl mt-1 max-h-60 overflow-y-auto left-0"></div>
+                <!-- Ops 分析區塊 (層級摺疊表格) -->
+                <div class="flex flex-col items-center mb-6">
+                    <h2 class="text-2xl font-bold text-emerald-800 border-b-4 border-emerald-100 pb-2 mb-4 px-8 uppercase">Ops 招募渠道績效明細 (按樓層字首歸類)</h2>
+                    <div class="glass-card w-full flex flex-wrap items-center justify-center gap-6 border-l-4 border-emerald-500 bg-emerald-50/20 mb-6">
+                        <div class="flex items-center gap-2 text-sm">
+                            <label class="font-bold text-emerald-900">人員類型：</label>
+                            <select id="ops-filter-role" onchange="updateOpsAnalysis()" class="border rounded px-2 py-1 outline-none shadow-sm focus:ring-2 focus:ring-emerald-400">
+                                <option value="ALL">全部 (All)</option><option value="NJ">NJ</option><option value="RJ">RJ</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2 custom-dropdown relative text-sm">
+                            <label class="font-bold text-emerald-900">梯次年月：</label>
+                            <div class="relative">
+                                <button type="button" onclick="toggleDropdown('ops-period-panel')" class="border rounded px-3 py-1 bg-white min-w-[140px] flex justify-between items-center shadow-sm">
+                                    <span id="ops-period-text">全部梯次</span><i class="fa-solid fa-calendar-check ml-2 text-emerald-300"></i>
+                                </button>
+                                <div id="ops-period-panel" class="dropdown-panel hidden absolute z-50 w-64 bg-white border rounded shadow-xl mt-2 max-h-60 overflow-y-auto left-0"></div>
+                            </div>
                         </div>
                     </div>
-                </div>
 
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    <div class="glass-card">
-                        <h3 class="text-lg font-bold mb-4">品牌績效分布</h3>
+                    <!-- 合併層級表格 -->
+                    <div class="glass-card w-full p-0 overflow-hidden border border-gray-100">
                         <div class="overflow-x-auto">
-                            <table class="min-w-full summary-table">
-                                <thead><tr><th>品牌 (Brand)</th><th class="text-center">入職人數 (HC)</th><th class="text-right">總銷售額 (Sales)</th></tr></thead>
-                                <tbody id="ops-brand-tbody"></tbody>
-                            </table>
-                        </div>
-                    </div>
-                    <div class="glass-card">
-                        <h3 class="text-lg font-bold mb-4">樓層分佈表現</h3>
-                        <div class="overflow-x-auto">
-                            <table class="min-w-full summary-table">
-                                <thead><tr><th>樓層 (Floor)</th><th class="text-center">入職人數 (HC)</th><th class="text-right">總銷售額 (Sales)</th></tr></thead>
-                                <tbody id="ops-floor-tbody"></tbody>
+                            <table class="min-w-full summary-table border-collapse">
+                                <thead class="sticky top-0 z-10">
+                                    <tr>
+                                        <th class="border-b shadow-sm">品牌 / 樓層組別 / 隊伍</th>
+                                        <th class="text-center border-b shadow-sm">人數 (HC)</th>
+                                        <th class="text-right border-b shadow-sm">總銷售額 (Sales)</th>
+                                        <th class="text-right border-b shadow-sm">總成本 (Cost)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="ops-combined-tbody"></tbody>
                             </table>
                         </div>
                     </div>
@@ -247,23 +269,23 @@
         </div>
     </div>
 
-    <!-- 詳細名單 Modal -->
+    <!-- 詳細名單彈窗 (Modal) -->
     <div id="sales-modal" class="fixed inset-0 z-[100] hidden bg-gray-900 bg-opacity-60 flex items-center justify-center p-4 backdrop-blur-sm">
         <div class="bg-white rounded-xl shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col overflow-hidden">
             <div class="p-5 border-b flex justify-between items-center bg-indigo-50">
                 <h3 class="text-xl font-bold text-indigo-900" id="sales-modal-title">名單明細</h3>
-                <button onclick="closeSalesModal()" class="text-gray-500 hover:text-rose-600 transition"><i class="fa-solid fa-times text-2xl"></i></button>
+                <button onclick="closeSalesModal()" class="text-gray-500 hover:text-rose-600 transition p-1"><i class="fa-solid fa-times text-2xl"></i></button>
             </div>
             <div class="p-0 overflow-y-auto flex-1 bg-white">
                 <table class="min-w-full text-left text-sm text-gray-600">
                     <thead class="bg-gray-100 text-gray-800 uppercase font-semibold sticky top-0 shadow-sm">
                         <tr>
-                            <th class="px-6 py-4 whitespace-nowrap">Batch Date (A)</th>
-                            <th class="px-6 py-4 whitespace-nowrap">Staff ID (C)</th>
-                            <th class="px-6 py-4 whitespace-nowrap">在職狀態 / 分佈</th>
-                            <th class="px-6 py-4 whitespace-nowrap text-center">上數月數</th>
-                            <th class="px-6 py-4 whitespace-nowrap text-right">總銷售 (HK$)</th>
-                            <th class="px-6 py-4 whitespace-nowrap text-right text-emerald-700">平均月銷售 (HK$)</th>
+                            <th class="px-6 py-4 whitespace-nowrap">Batch Date</th>
+                            <th class="px-6 py-4 whitespace-nowrap">Staff ID</th>
+                            <th class="px-6 py-4 whitespace-nowrap">狀態 / 分佈</th>
+                            <th class="px-6 py-4 whitespace-nowrap text-center">月數</th>
+                            <th class="px-6 py-4 whitespace-nowrap text-right">銷售 (HK$)</th>
+                            <th class="px-6 py-4 whitespace-nowrap text-right text-emerald-700">月均銷售</th>
                             <th class="px-6 py-4 whitespace-nowrap text-right text-rose-700 font-bold">成本 (HK$)</th>
                         </tr>
                     </thead>
@@ -271,7 +293,7 @@
                 </table>
             </div>
             <div class="bg-gray-50 p-4 border-t text-right">
-                <button onclick="closeSalesModal()" class="bg-gray-600 text-white font-bold py-2 px-6 rounded shadow transition">關閉視窗</button>
+                <button onclick="closeSalesModal()" class="bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-8 rounded shadow transition">關閉</button>
             </div>
         </div>
     </div>
@@ -301,11 +323,15 @@
             } catch (err) { console.error(err); }
         }
 
-        const S1_BATCH_DATE = 0, S1_BATCH = 1, S1_STAFF_ID = 2, S1_NAME = 3, S1_COST = 5, S1_DEPT = 7, S1_FLOOR = 15, S1_SOURCE = 11, S1_ROLE = 16, S1_JOIN_DATE = 19, S1_LAST_DATE = 41, S1_AS_DATE = 44; 
+        const S1_BATCH_DATE = 0, S1_BATCH = 1, S1_STAFF_ID = 2, S1_COST = 5, S1_DEPT = 7, S1_FLOOR = 15, S1_SOURCE = 11, S1_ROLE = 16, S1_JOIN_DATE = 19, S1_LAST_DATE = 41, S1_AS_DATE = 44; 
         const S2_MONTH = 1, S2_STAFF_ID = 8, S2_ACTUAL = 13, S2_REALIZED = 17;
 
         let globalStaffMap = {}, globalSalesData = [];
         let charts = {};
+        
+        let expandedBrands = new Set();
+        let expandedFloorGroups = new Set();
+        let opsDataStructure = {}; 
 
         function toggleDropdown(id) {
             const p = document.getElementById(id);
@@ -393,7 +419,8 @@
 
         function updateSalesData() {
             const sf = document.getElementById('sales-filter-source').value, rf = document.getElementById('sales-filter-role').value;
-            const mf = document.getElementById('sales-filter-metric').value, sp = Array.from(document.querySelectorAll('.sales-period-checkbox:checked')).map(c => c.value);
+            const sp = Array.from(document.querySelectorAll('.sales-period-checkbox:checked')).map(c => c.value);
+            const metric = document.getElementById('sales-filter-metric').value;
             let fids = new Set(), sbb = {}, th = 0, tactual = 0, trealized = 0, tcost = 0;
 
             for (const [sid, info] of Object.entries(globalStaffMap)) {
@@ -411,7 +438,7 @@
                     tactual += s.actual; trealized += s.realized;
                     const info = globalStaffMap[s.staffId], bg = getBatchGroup(info);
                     if (sbb[bg] && (info.role === 'NJ' || info.role === 'RJ')) {
-                        sbb[bg][info.role].val += (mf === 'ACTUAL' ? s.actual : s.realized);
+                        sbb[bg][info.role].val += (metric === 'ACTUAL' ? s.actual : s.realized);
                         if (s.month) sbb[bg][info.role].rec.add(`${s.staffId}-${s.month}`);
                     }
                 }
@@ -421,7 +448,7 @@
             document.getElementById('kpi-actual').innerText = formatCurrency(tactual);
             document.getElementById('kpi-realized').innerText = formatCurrency(trealized);
             document.getElementById('kpi-cost').innerText = formatCurrency(tcost);
-            renderSalesCharts(sbb, mf);
+            renderSalesCharts(sbb);
         }
 
         function updateAttritionData() {
@@ -457,45 +484,209 @@
         function updateOpsAnalysis() {
             const rf = document.getElementById('ops-filter-role').value;
             const sp = Array.from(document.querySelectorAll('.ops-period-checkbox:checked')).map(c => c.value);
-            const mf = document.getElementById('sales-filter-metric').value;
-            const mKey = mf === 'ACTUAL' ? 'actual' : 'realized';
+            const metric = document.getElementById('sales-filter-metric').value;
+            const mKey = metric === 'ACTUAL' ? 'actual' : 'realized';
             
-            let brandStats = {}, floorStats = {}, fids = new Set();
+            opsDataStructure = {
+                "Reenex": { hc: 0, sales: 0, cost: 0, floors: {}, prefix: 'R' },
+                "Dermes": { hc: 0, sales: 0, cost: 0, floors: {}, prefix: 'D' },
+                "Elyze": { hc: 0, sales: 0, cost: 0, floors: {}, prefix: 'E' }
+            };
+
+            let fids = new Set();
             for (const [sid, info] of Object.entries(globalStaffMap)) {
                 if (info.source !== 'Ops' || (rf !== 'ALL' && info.role !== rf)) continue;
                 const bg = getBatchGroup(info);
                 if (sp.length && !sp.includes(bg)) continue;
+                
+                const fullFloorName = (info.floor || 'Unknown').toString().trim().toUpperCase();
+                
+                // 強制修正邏輯：根據樓層第一個字母來分類品牌，而不是根據 Dept 欄位
+                let brand = "Unknown";
+                if (fullFloorName.startsWith('R')) brand = "Reenex";
+                else if (fullFloorName.startsWith('D')) brand = "Dermes";
+                else if (fullFloorName.startsWith('E')) brand = "Elyze";
+                
+                if (brand === "Unknown") continue; // 過濾掉無法識別的樓層
+
                 fids.add(sid);
-                const b = info.dept || 'Unknown', f = (info.floor || 'Unknown').toString().trim();
-                if (!brandStats[b]) brandStats[b] = { hc: 0, sales: 0 };
-                if (!floorStats[f]) floorStats[f] = { hc: 0, sales: 0 };
-                brandStats[b].hc++; floorStats[f].hc++;
+                let groupName = (info.floor || 'Unknown').toString().trim();
+                let subTeam = "";
+                const match = groupName.match(/^(.*?)\s*(\([A-Z]\))$/);
+                if (match) {
+                    groupName = match[1].trim();
+                    subTeam = match[2];
+                }
+
+                if (!opsDataStructure[brand].floors[groupName]) {
+                    opsDataStructure[brand].floors[groupName] = { hc: 0, sales: 0, cost: 0, subs: {} };
+                }
+
+                opsDataStructure[brand].hc++;
+                opsDataStructure[brand].cost += info.cost || 0;
+                opsDataStructure[brand].floors[groupName].hc++;
+                opsDataStructure[brand].floors[groupName].cost += info.cost || 0;
+
+                if (subTeam) {
+                    const fullName = (info.floor || 'Unknown').toString().trim();
+                    if (!opsDataStructure[brand].floors[groupName].subs[fullName]) {
+                        opsDataStructure[brand].floors[groupName].subs[fullName] = { team: subTeam, hc: 0, sales: 0, cost: 0 };
+                    }
+                    opsDataStructure[brand].floors[groupName].subs[fullName].hc++;
+                    opsDataStructure[brand].floors[groupName].subs[fullName].cost += info.cost || 0;
+                }
             }
+
             globalSalesData.forEach(s => {
                 if (fids.has(s.staffId)) {
                     const info = globalStaffMap[s.staffId];
-                    brandStats[info.dept || 'Unknown'].sales += s[mKey];
-                    floorStats[(info.floor || 'Unknown').toString().trim()].sales += s[mKey];
+                    const fullFloorName = info.floor.toString().trim().toUpperCase();
+                    
+                    let brand = "Unknown";
+                    if (fullFloorName.startsWith('R')) brand = "Reenex";
+                    else if (fullFloorName.startsWith('D')) brand = "Dermes";
+                    else if (fullFloorName.startsWith('E')) brand = "Elyze";
+
+                    if (brand !== "Unknown") {
+                        const originalFullName = info.floor.toString().trim();
+                        let groupName = originalFullName;
+                        const match = originalFullName.match(/^(.*?)\s*(\([A-Z]\))$/);
+                        if (match) groupName = match[1].trim();
+
+                        opsDataStructure[brand].sales += s[mKey];
+                        if (opsDataStructure[brand].floors[groupName]) {
+                            opsDataStructure[brand].floors[groupName].sales += s[mKey];
+                            if (opsDataStructure[brand].floors[groupName].subs[originalFullName]) {
+                                opsDataStructure[brand].floors[groupName].subs[originalFullName].sales += s[mKey];
+                            }
+                        }
+                    }
                 }
             });
 
-            const sortedBrand = Object.entries(brandStats).sort((a,b) => b[1].sales - a[1].sales);
-            const sortedFloor = Object.entries(floorStats).sort((a,b) => {
-                const keyA = a[0].toUpperCase(), keyB = b[0].toUpperCase();
-                const pri = { 'D': 0, 'R': 1, 'E': 2 };
-                const pA = pri[keyA[0]], pB = pri[keyB[0]];
-                if (pA !== undefined && pB !== undefined) return pA !== pB ? pA - pB : keyA.localeCompare(keyB, undefined, {numeric:true});
-                if (pA !== undefined) return -1; if (pB !== undefined) return 1;
-                return (parseInt(keyA.replace(/\D/g,''))||0) - (parseInt(keyB.replace(/\D/g,''))||0);
+            renderOpsCombinedTable();
+        }
+
+        function toggleBrandGroup(brand) {
+            if (expandedBrands.has(brand)) expandedBrands.delete(brand);
+            else expandedBrands.add(brand);
+            renderOpsCombinedTable();
+        }
+
+        function toggleFloorGroup(floorKey) {
+            if (expandedFloorGroups.has(floorKey)) expandedFloorGroups.delete(floorKey);
+            else expandedFloorGroups.add(floorKey);
+            renderOpsCombinedTable();
+        }
+
+        function renderOpsCombinedTable() {
+            let html = "";
+            const brands = Object.keys(opsDataStructure);
+
+            brands.forEach(brand => {
+                const bData = opsDataStructure[brand];
+                const isBExpanded = expandedBrands.has(brand);
+
+                html += `
+                    <tr class="brand-group-row" onclick="toggleBrandGroup('${brand}')">
+                        <td class="flex items-center gap-3">
+                            <i class="fa-solid fa-chevron-down chevron-icon ${isBExpanded ? 'chevron-expanded' : ''}"></i>
+                            ${brand}
+                        </td>
+                        <td class="text-center">${bData.hc}</td>
+                        <td class="text-right text-emerald-600">${formatCurrency(bData.sales)}</td>
+                        <td class="text-right text-rose-700">${formatCurrency(bData.cost)}</td>
+                    </tr>
+                `;
+
+                if (isBExpanded) {
+                    const sortedFloors = Object.entries(bData.floors).sort((a,b) => a[0].localeCompare(b[0], undefined, {numeric: true}));
+                    sortedFloors.forEach(([fName, fData]) => {
+                        const floorKey = `${brand}-${fName}`;
+                        const hasSubs = Object.keys(fData.subs).length > 0;
+                        const isFExpanded = expandedFloorGroups.has(floorKey);
+
+                        html += `
+                            <tr class="floor-group-row" onclick="${hasSubs ? `toggleFloorGroup('${floorKey}')` : ''}">
+                                <td class="indent-1 flex items-center gap-2">
+                                    ${hasSubs ? `<i class="fa-solid fa-chevron-down chevron-icon ${isFExpanded ? 'chevron-expanded' : ''}"></i>` : ''}
+                                    ${fName}
+                                </td>
+                                <td class="text-center">
+                                    ${hasSubs ? fData.hc : `<span class="clickable-number" onclick="event.stopPropagation(); showDetailList('${fName}', 'Floor', 'ops')">${fData.hc}</span>`}
+                                </td>
+                                <td class="text-right text-emerald-500 font-medium">${formatCurrency(fData.sales)}</td>
+                                <td class="text-right text-rose-600">${formatCurrency(fData.cost)}</td>
+                            </tr>
+                        `;
+
+                        if (hasSubs && isFExpanded) {
+                            Object.entries(fData.subs).sort((a,b) => a[0].localeCompare(b[0])).forEach(([fullName, sub]) => {
+                                html += `
+                                    <tr class="sub-team-row text-xs text-gray-500">
+                                        <td class="indent-2 italic text-gray-400">${sub.team}</td>
+                                        <td class="text-center">
+                                            <span class="clickable-number" onclick="showDetailList('${fullName}', 'Floor', 'ops')">${sub.hc}</span>
+                                        </td>
+                                        <td class="text-right">${formatCurrency(sub.sales)}</td>
+                                        <td class="text-right">${formatCurrency(sub.cost)}</td>
+                                    </tr>
+                                `;
+                            });
+                        }
+                    });
+                }
             });
 
-            document.getElementById('ops-brand-tbody').innerHTML = sortedBrand.map(([k,v]) => `<tr><td>${k}</td><td class="text-center"><span class="clickable-number" onclick="showDetailList('${k}', 'Brand', 'ops')">${v.hc}</span></td><td class="text-right text-emerald-600 font-bold">${formatCurrency(v.sales)}</td></tr>`).join('');
-            document.getElementById('ops-floor-tbody').innerHTML = sortedFloor.map(([k,v]) => `<tr><td>${k}</td><td class="text-center"><span class="clickable-number" onclick="showDetailList('${k}', 'Floor', 'ops')">${v.hc}</span></td><td class="text-right text-emerald-600 font-bold">${formatCurrency(v.sales)}</td></tr>`).join('');
+            document.getElementById('ops-combined-tbody').innerHTML = html || '<tr><td colspan="4" class="text-center py-8 text-gray-400 font-medium">暫無 Ops 數據符合篩選條件</td></tr>';
+        }
+
+        async function fetchFromAPI() {
+            const statusEl = document.getElementById('data-status');
+            statusEl.innerHTML = '<i class="fa-solid fa-sync loading-spinner mr-2"></i>刷新雲端數據中...';
+            try {
+                const urlInput = document.getElementById('api-url').value;
+                const url = urlInput + (urlInput.includes('?') ? '&' : '?') + 't=' + new Date().getTime();
+                const res = await fetch(url);
+                const d = await res.json();
+                globalStaffMap = {}; 
+                globalSalesData = [];
+                parseRawData(d.sheet1, d.sheet2);
+            } catch (err) {
+                console.error(err);
+                statusEl.innerHTML = `<span class="text-rose-600 font-bold"><i class="fa-solid fa-triangle-exclamation mr-1"></i>同步失敗，請檢查網址或權限</span>`;
+            }
+        }
+
+        function parseRawData(s1, s2) {
+            s1.slice(1).forEach(r => { 
+                const sid = (r[S1_STAFF_ID] || "").toString().trim();
+                if(sid && sid !== "" && sid !== "Staff ID" && sid.length < 15) {
+                    globalStaffMap[sid] = { 
+                        batchDate: r[S1_BATCH_DATE], batch: r[S1_BATCH], dept: r[S1_DEPT], floor: r[S1_FLOOR], source: r[S1_SOURCE], 
+                        role: r[S1_ROLE]?.toString().toUpperCase(), joinDate: r[S1_JOIN_DATE], lastDate: r[S1_LAST_DATE], 
+                        asDate: r[S1_AS_DATE], cost: cleanNumber(r[S1_COST]) 
+                    }; 
+                }
+            });
+            s2.slice(1).forEach(r => { 
+                const sid = (r[S2_STAFF_ID] || "").toString().trim();
+                if(sid && sid !== "" && globalStaffMap[sid]) { 
+                    globalSalesData.push({ 
+                        month: r[S2_MONTH], 
+                        staffId: sid, 
+                        actual: cleanNumber(r[S2_ACTUAL]), 
+                        realized: cleanNumber(r[S2_REALIZED]) 
+                    }); 
+                }
+            });
+            populatePeriodFilters(); 
+            updateDashboard();
         }
 
         function showDetailList(value, type, section, roleType, batchName) {
-            const mf = document.getElementById('sales-filter-metric').value;
-            const mKey = mf === 'ACTUAL' ? 'actual' : 'realized';
+            const metric = document.getElementById('sales-filter-metric').value;
+            const mKey = metric === 'ACTUAL' ? 'actual' : 'realized';
             let rf, sp, sf;
             if (section === 'ops') {
                 rf = document.getElementById('ops-filter-role').value;
@@ -513,7 +704,15 @@
                 if (rf !== 'ALL' && info.role !== rf) continue;
                 const bg = getBatchGroup(info);
                 if (sp.length && !sp.includes(bg)) continue;
-                if (type === 'Brand' && info.dept !== value) continue;
+                
+                // 明細彈窗內的過濾也需遵循樓層首字母邏輯
+                const fStr = (info.floor || '').toString().trim().toUpperCase();
+                let b = "Unknown";
+                if (fStr.startsWith('R')) b = "Reenex";
+                else if (fStr.startsWith('D')) b = "Dermes";
+                else if (fStr.startsWith('E')) b = "Elyze";
+
+                if (type === 'Brand' && b !== value) continue;
                 if (type === 'Floor' && (info.floor || '').toString().trim() !== value) continue;
 
                 const m = calculateTenureMonths(info.joinDate, info.lastDate);
@@ -543,7 +742,7 @@
 
         function closeSalesModal() { document.getElementById('sales-modal').classList.add('hidden'); }
 
-        function renderSalesCharts(sbb, mf) {
+        function renderSalesCharts(sbb) {
             const labels = Object.keys(sbb).sort();
             const onClickHandler = (e, el) => {
                 if (el.length) {
@@ -557,19 +756,19 @@
             if (charts.hc) charts.hc.destroy();
             charts.hc = new Chart(document.getElementById('chart-sales-headcount'), {
                 type: 'bar', data: { labels, datasets: [{ label:'NJ', data:labels.map(l=>sbb[l].NJ.hc), backgroundColor:'#4F46E5'},{ label:'RJ', data:labels.map(l=>sbb[l].RJ.hc), backgroundColor:'#10B981'}] },
-                options: { maintainAspectRatio:false, plugins:{ title:{ display:true, text:'梯次人數分佈'}}, onClick: onClickHandler, onHover: onHoverHandler }
+                options: { maintainAspectRatio:false, plugins:{ title:{ display:true, text:'梯次入職人數分佈'}}, onClick: onClickHandler, onHover: onHoverHandler }
             });
 
             if (charts.sales) charts.sales.destroy();
             charts.sales = new Chart(document.getElementById('chart-sales'), {
                 type: 'bar', data: { labels, datasets: [{ label:'NJ 銷售', data:labels.map(l=>sbb[l].NJ.val), backgroundColor:'rgba(79, 70, 229, 0.7)'},{ label:'RJ 銷售', data:labels.map(l=>sbb[l].RJ.val), backgroundColor:'rgba(16, 185, 129, 0.7)'}] },
-                options: { maintainAspectRatio:false, plugins:{ title:{ display:true, text:'梯次銷售表現'}}, onClick: onClickHandler, onHover: onHoverHandler }
+                options: { maintainAspectRatio:false, plugins:{ title:{ display:true, text:'梯次總體銷售表現'}}, onClick: onClickHandler, onHover: onHoverHandler }
             });
 
             if (charts.avg) charts.avg.destroy();
             charts.avg = new Chart(document.getElementById('chart-avg-sales'), {
                 type: 'bar', data: { labels, datasets: [{ label:'NJ 人均', data:labels.map(l=>sbb[l].NJ.rec.size?sbb[l].NJ.val/sbb[l].NJ.rec.size:0), backgroundColor:'#F43F5E'},{ label:'RJ 人均', data:labels.map(l=>sbb[l].RJ.rec.size?sbb[l].RJ.val/sbb[l].RJ.rec.size:0), backgroundColor:'#FBBF24'}] },
-                options: { maintainAspectRatio:false, plugins:{ title:{ display:true, text:'人均月銷售'}}, onClick: onClickHandler, onHover: onHoverHandler }
+                options: { maintainAspectRatio:false, plugins:{ title:{ display:true, text:'人均月銷售分析'}}, onClick: onClickHandler, onHover: onHoverHandler }
             });
         }
 
@@ -578,82 +777,18 @@
             if (charts.at) charts.at.destroy();
             charts.at = new Chart(document.getElementById('chart-retention'), {
                 type:'bar', data: { labels, datasets: [{ label:'在職', data:labels.map(l=>sbb[l].ACTIVE), backgroundColor:'#10B981'},{ label:'已離職', data:labels.map(l=>sbb[l].RESIGNED), backgroundColor:'#F43F5E'}] },
-                options: { maintainAspectRatio:false, scales:{ x:{stacked:true}, y:{stacked:true}} }
+                options: { maintainAspectRatio:false, scales:{ x:{stacked:true}, y:{stacked:true}}, plugins:{ title:{ display:true, text:'各梯次留任狀況'}} }
             });
             if (charts.ten) charts.ten.destroy();
             charts.ten = new Chart(document.getElementById('chart-tenure'), {
                 type:'doughnut', data: { labels: Object.keys(tb), datasets: [{ data: Object.values(tb), backgroundColor:['#991B1B', '#F43F5E','#FBBF24','#60A5FA','#34D399']}] },
-                options: { maintainAspectRatio:false }
+                options: { maintainAspectRatio:false, plugins:{ title:{ display:true, text:'員工服務年資分佈'}} }
             });
             if (charts.join) charts.join.destroy();
             charts.join = new Chart(document.getElementById('chart-joiners'), {
-                type:'line', data: { labels, datasets: [{ label:'入職人數', data:labels.map(l=>sbb[l].ACTIVE+sbb[l].RESIGNED), borderColor:'#4F46E5', fill:false}] },
-                options: { maintainAspectRatio:false }
+                type:'line', data: { labels, datasets: [{ label:'入職人數', data:labels.map(l=>sbb[l].ACTIVE+sbb[l].RESIGNED), borderColor:'#4F46E5', fill:false, tension:0.3}] },
+                options: { maintainAspectRatio:false, plugins:{ title:{ display:true, text:'入職人數趨勢'}} }
             });
-        }
-
-        async function processUploadedFiles() {
-            const f1 = document.getElementById('file-sheet1').files[0], f2 = document.getElementById('file-sheet2').files[0];
-            if (!f1 || !f2) { document.getElementById('data-status').innerText = "請上傳兩份檔案。"; return; }
-            const d1 = await new Promise(r => Papa.parse(f1, { complete: res => r(res.data) }));
-            const d2 = await new Promise(r => Papa.parse(f2, { complete: res => r(res.data) }));
-            globalStaffMap = {}; globalSalesData = [];
-            parseRawData(d1, d2);
-            switchTab('dashboard');
-        }
-
-        async function fetchFromAPI() {
-            document.getElementById('data-status').innerHTML = '<i class="fa-solid fa-sync loading-spinner mr-2"></i>刷新雲端數據中...';
-            try {
-                const url = document.getElementById('api-url').value + '?t=' + new Date().getTime();
-                const res = await fetch(url);
-                const d = await res.json();
-                
-                // 強制清空所有緩存，確保無舊數據
-                globalStaffMap = {}; 
-                globalSalesData = [];
-                
-                parseRawData(d.sheet1, d.sheet2);
-            } catch (err) {
-                document.getElementById('data-status').innerText = "API 同步失敗，請確認網址。";
-            }
-        }
-
-        function parseRawData(s1, s2) {
-            // 解析員工主檔：嚴格過濾空行
-            s1.slice(1).forEach(r => { 
-                const sid = (r[S1_STAFF_ID] || "").toString().trim();
-                // 只有當 Staff ID 存在且不為標題、不為空字串、且長度合理的狀況下才視為有效
-                if(sid && sid !== "" && sid !== "Staff ID" && sid.length < 15) {
-                    globalStaffMap[sid] = { 
-                        batchDate: r[S1_BATCH_DATE], dept: r[S1_DEPT], floor: r[S1_FLOOR], source: r[S1_SOURCE], 
-                        role: r[S1_ROLE]?.toString().toUpperCase(), joinDate: r[S1_JOIN_DATE], lastDate: r[S1_LAST_DATE], 
-                        asDate: r[S1_AS_DATE], batch: r[S1_BATCH], cost: cleanNumber(r[S1_COST]) 
-                    }; 
-                }
-            });
-
-            // 解析銷售檔：確保對應主檔
-            s2.slice(1).forEach(r => { 
-                const sid = (r[S2_STAFF_ID] || "").toString().trim();
-                if(sid && sid !== "" && globalStaffMap[sid]) { 
-                    globalSalesData.push({ 
-                        month: r[S2_MONTH], 
-                        staffId: sid, 
-                        actual: cleanNumber(r[S2_ACTUAL]), 
-                        realized: cleanNumber(r[S2_REALIZED]) 
-                    }); 
-                }
-            });
-            
-            populatePeriodFilters(); 
-            updateDashboard();
-        }
-
-        function loadMockData() {
-            globalStaffMap = { 'TEST-001': { source:'Ops', dept:'測試', floor:'D1', role:'NJ', batchDate:'2025-01', asDate:'01-2025', cost:1000 } };
-            globalSalesData = [{ staffId:'TEST-001', actual:5000, realized:4000, month:'2025-02' }];
-            populatePeriodFilters(); updateDashboard();
         }
     </script>
 </body>
