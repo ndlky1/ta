@@ -106,7 +106,7 @@
                         <p class="font-bold text-indigo-700 underline">同步提示：</p>
                         <p>1. 本系統會解析 Sheet 1 第 L 欄，將值為 "HR" 的數據歸類至 HR 分析區塊。</p>
                         <p>2. 即使 Sheet 1 的部門欄位有誤，系統仍會根據樓層首字母 (R/D/E) 自動導正品牌歸屬。</p>
-                        <p>3. 所有 Batch Date 會自動格式化為 DD/MM/YYYY 顯示。</p>
+                        <p>3. 所有篩選器均支持按品牌 (Brand) 過濾。</p>
                     </div>
                 </div>
             </div>
@@ -142,6 +142,12 @@
 
                 <!-- 銷售分析圖表篩選 -->
                 <div class="glass-card mb-8 flex flex-wrap items-center justify-center gap-6 border-y border-indigo-100 bg-indigo-50/30">
+                    <div class="flex items-center gap-2">
+                        <label class="font-bold text-sm text-indigo-900">所屬品牌：</label>
+                        <select id="sales-filter-brand" onchange="updateSalesData()" class="border rounded-md px-2 py-1 text-sm outline-none shadow-sm focus:ring-2 focus:ring-indigo-400">
+                            <option value="ALL">全部 (All)</option><option value="Reenex">Reenex</option><option value="Dermes">Dermes</option><option value="Elyze">Elyze</option>
+                        </select>
+                    </div>
                     <div class="flex items-center gap-2">
                         <label class="font-bold text-sm text-indigo-900">招募來源：</label>
                         <select id="sales-filter-source" onchange="updateSalesData()" class="border rounded-md px-2 py-1 text-sm outline-none shadow-sm focus:ring-2 focus:ring-indigo-400">
@@ -182,6 +188,12 @@
                     <h2 class="text-2xl font-bold text-emerald-800 border-b-4 border-emerald-100 pb-2 mb-4 px-8 uppercase">Ops 招募渠道績效明細 (按樓層字首歸類)</h2>
                     <div class="glass-card w-full flex flex-wrap items-center justify-center gap-6 border-l-4 border-emerald-500 bg-emerald-50/20 mb-6">
                         <div class="flex items-center gap-2 text-sm">
+                            <label class="font-bold text-emerald-900">所屬品牌：</label>
+                            <select id="ops-filter-brand" onchange="updateOpsAnalysis()" class="border rounded px-2 py-1 outline-none shadow-sm focus:ring-2 focus:ring-emerald-400">
+                                <option value="ALL">全部 (All)</option><option value="Reenex">Reenex</option><option value="Dermes">Dermes</option><option value="Elyze">Elyze</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm">
                             <label class="font-bold text-emerald-900">人員類型：</label>
                             <select id="ops-filter-role" onchange="updateOpsAnalysis()" class="border rounded px-2 py-1 outline-none shadow-sm focus:ring-2 focus:ring-emerald-400">
                                 <option value="ALL">全部 (All)</option><option value="NJ">NJ</option><option value="RJ">RJ</option>
@@ -219,6 +231,12 @@
                     <h2 class="text-2xl font-bold text-indigo-800 border-b-4 border-indigo-100 pb-2 mb-4 px-8 uppercase">HR 招募渠道績效明細 (按品牌歸類)</h2>
                     <div class="glass-card w-full flex flex-wrap items-center justify-center gap-6 border-l-4 border-indigo-500 bg-indigo-50/20 mb-6">
                         <div class="flex items-center gap-2 text-sm">
+                            <label class="font-bold text-indigo-900">所屬品牌：</label>
+                            <select id="hr-filter-brand" onchange="updateHRAnalysis()" class="border rounded px-2 py-1 outline-none shadow-sm focus:ring-2 focus:ring-indigo-400">
+                                <option value="ALL">全部 (All)</option><option value="Reenex">Reenex</option><option value="Dermes">Dermes</option><option value="Elyze">Elyze</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm">
                             <label class="font-bold text-indigo-900">人員類型：</label>
                             <select id="hr-filter-role" onchange="updateHRAnalysis()" class="border rounded px-2 py-1 outline-none shadow-sm focus:ring-2 focus:ring-indigo-400">
                                 <option value="ALL">全部 (All)</option><option value="NJ">NJ</option><option value="RJ">RJ</option>
@@ -255,6 +273,12 @@
                 <div class="flex flex-col items-center mb-6">
                     <h2 class="text-2xl font-bold text-rose-800 border-b-4 border-rose-100 pb-2 mb-4 px-8 uppercase">員工留任與離職分析</h2>
                     <div class="glass-card w-full flex flex-wrap items-center justify-center gap-6 border-l-4 border-rose-400 bg-rose-50/20">
+                        <div class="flex items-center gap-2 text-sm">
+                            <label class="font-bold text-rose-900">所屬品牌：</label>
+                            <select id="attrition-filter-brand" onchange="updateAttritionData()" class="border rounded px-2 py-1 outline-none shadow-sm focus:ring-2 focus:ring-rose-400">
+                                <option value="ALL">全部 (All)</option><option value="Reenex">Reenex</option><option value="Dermes">Dermes</option><option value="Elyze">Elyze</option>
+                            </select>
+                        </div>
                         <div class="flex items-center gap-2 text-sm">
                             <label class="font-bold text-rose-900">招募來源：</label>
                             <select id="attrition-filter-source" onchange="updateAttritionData()" class="border rounded px-2 py-1 outline-none shadow-sm focus:ring-2 focus:ring-rose-400">
@@ -402,6 +426,14 @@
             return dt < 0 ? 0 : dt / (1000 * 60 * 60 * 24 * 30.44);
         }
 
+        function getBrandByFloor(floor) {
+            const f = (floor || '').toString().trim().toUpperCase();
+            if (f.startsWith('R')) return "Reenex";
+            if (f.startsWith('D')) return "Dermes";
+            if (f.startsWith('E')) return "Elyze";
+            return "Unknown";
+        }
+
         function getBatchGroup(info) {
             let dStr = info.asDate;
             if (dStr && dStr.trim()) {
@@ -453,13 +485,17 @@
         }
 
         function updateSalesData() {
-            const sf = document.getElementById('sales-filter-source').value, rf = document.getElementById('sales-filter-role').value;
+            const bf = document.getElementById('sales-filter-brand').value;
+            const sf = document.getElementById('sales-filter-source').value;
+            const rf = document.getElementById('sales-filter-role').value;
             const sp = Array.from(document.querySelectorAll('.sales-period-checkbox:checked')).map(c => c.value);
             const metric = document.getElementById('sales-filter-metric').value;
             let fids = new Set(), sbb = {}, th = 0, tactual = 0, trealized = 0, tcost = 0;
 
             for (const [sid, info] of Object.entries(globalStaffMap)) {
-                if ((sf !== 'ALL' && info.source !== sf) || (rf !== 'ALL' && info.role !== rf)) continue;
+                if (bf !== 'ALL' && getBrandByFloor(info.floor) !== bf) continue;
+                if (sf !== 'ALL' && info.source !== sf) continue;
+                if (rf !== 'ALL' && info.role !== rf) continue;
                 const bg = getBatchGroup(info);
                 if (sp.length && !sp.includes(bg)) continue;
                 fids.add(sid); th++;
@@ -487,12 +523,16 @@
         }
 
         function updateAttritionData() {
-            const sf = document.getElementById('attrition-filter-source').value, rf = document.getElementById('attrition-filter-role').value;
+            const bf = document.getElementById('attrition-filter-brand').value;
+            const sf = document.getElementById('attrition-filter-source').value;
+            const rf = document.getElementById('attrition-filter-role').value;
             const sp = Array.from(document.querySelectorAll('.attrition-period-checkbox:checked')).map(c => c.value);
             let th = 0, ta = 0, tr = 0, sbb = {}, tb = { '<1個月': 0, '1-3個月': 0, '3-6個月': 0, '6-12個月': 0, '1年及以上': 0 };
 
             for (const [sid, info] of Object.entries(globalStaffMap)) {
-                if ((sf !== 'ALL' && info.source !== sf) || (rf !== 'ALL' && info.role !== rf)) continue;
+                if (bf !== 'ALL' && getBrandByFloor(info.floor) !== bf) continue;
+                if (sf !== 'ALL' && info.source !== sf) continue;
+                if (rf !== 'ALL' && info.role !== rf) continue;
                 const bg = getBatchGroup(info);
                 if (sp.length && !sp.includes(bg)) continue;
                 th++;
@@ -518,6 +558,7 @@
 
         function processSourceAnalysis(sourceType) {
             const prefix = sourceType.toLowerCase();
+            const bf = document.getElementById(`${prefix}-filter-brand`).value;
             const rf = document.getElementById(`${prefix}-filter-role`).value;
             const sp = Array.from(document.querySelectorAll(`.${prefix}-period-checkbox:checked`)).map(c => c.value);
             const mKey = document.getElementById('sales-filter-metric').value === 'ACTUAL' ? 'actual' : 'realized';
@@ -531,17 +572,13 @@
             let fids = new Set();
             for (const [sid, info] of Object.entries(globalStaffMap)) {
                 if (info.source !== sourceType || (rf !== 'ALL' && info.role !== rf)) continue;
+                const brand = getBrandByFloor(info.floor);
+                if (brand === "Unknown") continue;
+                if (bf !== 'ALL' && brand !== bf) continue;
+
                 const bg = getBatchGroup(info);
                 if (sp.length && !sp.includes(bg)) continue;
                 
-                const fStr = (info.floor || 'Unknown').toString().trim().toUpperCase();
-                let brand = "Unknown";
-                if (fStr.startsWith('R')) brand = "Reenex";
-                else if (fStr.startsWith('D')) brand = "Dermes";
-                else if (fStr.startsWith('E')) brand = "Elyze";
-                
-                if (brand === "Unknown") continue;
-
                 fids.add(sid);
                 let groupName = (info.floor || 'Unknown').toString().trim();
                 let subTeam = "";
@@ -565,8 +602,7 @@
             globalSalesData.forEach(s => {
                 if (fids.has(s.staffId)) {
                     const info = globalStaffMap[s.staffId];
-                    const fStr = info.floor.toString().trim().toUpperCase();
-                    let brand = fStr.startsWith('R') ? "Reenex" : (fStr.startsWith('D') ? "Dermes" : (fStr.startsWith('E') ? "Elyze" : "Unknown"));
+                    const brand = getBrandByFloor(info.floor);
                     if (brand !== "Unknown") {
                         const originalFullName = info.floor.toString().trim();
                         let groupName = originalFullName;
@@ -607,6 +643,8 @@
 
             brands.forEach(brand => {
                 const bData = dataStructure[brand];
+                if (bData.hc === 0) return; // 如果過濾後人數為 0 則不顯示品牌行
+
                 const brandId = `${section}-${brand}`;
                 const isBExpanded = expandedBrands.has(brandId);
 
@@ -706,10 +744,16 @@
             const metric = document.getElementById('sales-filter-metric').value;
             const mKey = metric === 'ACTUAL' ? 'actual' : 'realized';
             
+            let bf;
+            if (section === 'sales') bf = document.getElementById('sales-filter-brand').value;
+            else if (section === 'ops' || section === 'hr') bf = document.getElementById(`${section}-filter-brand`).value;
+            else bf = document.getElementById('attrition-filter-brand').value;
+
             let sf;
             if (section === 'ops') sf = 'Ops';
             else if (section === 'hr') sf = 'HR';
-            else sf = document.getElementById('sales-filter-source').value;
+            else if (section === 'sales') sf = document.getElementById('sales-filter-source').value;
+            else sf = document.getElementById('attrition-filter-source').value;
 
             let rf;
             if (roleOverride) rf = roleOverride;
@@ -722,6 +766,7 @@
 
             let ssm = {};
             for (const [sid, info] of Object.entries(globalStaffMap)) {
+                if (bf !== 'ALL' && getBrandByFloor(info.floor) !== bf) continue;
                 if (sf !== 'ALL' && info.source !== sf) continue;
                 if (rf !== 'ALL' && info.role !== rf) continue;
                 const currentBatch = getBatchGroup(info);
@@ -733,7 +778,6 @@
                 const m = calculateTenureMonths(info.joinDate, info.lastDate);
                 const isR = info.lastDate && !['', '-', 'N/A', '#N/A'].includes(info.lastDate.toString().trim());
                 
-                // 修改後的狀態顯示邏輯：細分已離職級別
                 let status = "在職";
                 if (isR) {
                     if (m < 1) status = "離職 (<1個月)";
